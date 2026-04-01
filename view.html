@@ -16,47 +16,19 @@
   --font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;
 }
 html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font)}
-
 .titlebar{
   height:48px;background:var(--surface);border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:center;position:sticky;top:0;z-index:100;
 }
 .tb-logo{font-family:var(--serif);font-size:15px;letter-spacing:0.5px;color:var(--accent)}
-
-.center-box{
-  max-width:440px;margin:80px auto;padding:0 20px;
-}
-
-.verify-card{
+.center-box{max-width:440px;margin:80px auto;padding:0 20px}
+.status-card{
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
   padding:40px;text-align:center;
 }
-.verify-card h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:8px}
-.verify-card .desc{color:var(--text2);font-size:13px;margin-bottom:28px;line-height:1.7}
-
-.shield-icon{
-  width:64px;height:64px;margin:0 auto 20px;
-  background:var(--accent-dim);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;font-size:28px;
-}
-
-input{
-  width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border2);
-  border-radius:10px;color:var(--text);font-family:var(--font);font-size:14px;
-  outline:none;transition:border-color 0.2s;margin-bottom:16px;text-align:center;
-}
-input:focus{border-color:var(--accent)}
-input::placeholder{color:var(--text3)}
-
-.btn{
-  width:100%;padding:12px;border:none;border-radius:10px;cursor:pointer;
-  font-family:var(--font);font-size:14px;font-weight:600;transition:all 0.2s;
-  background:var(--accent);color:#0c0c10;
-}
-.btn:hover{background:var(--accent2)}
-.btn:disabled{opacity:0.5;cursor:not-allowed}
-
-/* ── Error States ── */
+.status-card .icon{font-size:48px;margin-bottom:16px}
+.status-card h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:8px}
+.status-card p{color:var(--text2);font-size:13px;line-height:1.7}
 .error-card{
   background:var(--surface);border:1px solid rgba(248,113,113,0.3);border-radius:16px;
   padding:40px;text-align:center;
@@ -64,11 +36,7 @@ input::placeholder{color:var(--text3)}
 .error-card .icon{font-size:48px;margin-bottom:16px}
 .error-card h3{color:var(--red);font-size:18px;margin-bottom:8px}
 .error-card p{color:var(--text2);font-size:13px;line-height:1.7}
-
-/* ── Success / Content ── */
-.content-area{
-  max-width:900px;margin:24px auto;padding:0 20px;
-}
+.content-area{max-width:900px;margin:24px auto;padding:0 20px}
 .content-frame{
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
   padding:32px;min-height:200px;
@@ -80,14 +48,11 @@ input::placeholder{color:var(--text3)}
 }
 .content-title{font-family:var(--serif);font-size:18px;color:var(--accent)}
 .remaining{font-family:var(--mono);font-size:11px;color:var(--text3)}
-
-/* ── Animations ── */
 @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .animate{animation:fadeIn 0.4s ease-out}
-
 .spinner{
-  width:24px;height:24px;border:2px solid var(--border2);border-top-color:var(--accent);
-  border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block;
+  width:32px;height:32px;border:3px solid var(--border2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 16px;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -98,72 +63,60 @@ input::placeholder{color:var(--text3)}
   <span class="tb-logo">PageCraft Pro</span>
 </div>
 
-<!-- Step 1: Email Verification -->
-<div id="verifyScreen" class="center-box animate">
-  <div class="verify-card">
-    <div class="shield-icon">🔐</div>
-    <h2>접근 인증</h2>
-    <p class="desc">이 콘텐츠는 접근이 제한되어 있습니다.<br>허가된 이메일 주소를 입력해주세요.</p>
-    <input type="email" id="emailInput" placeholder="your@email.com" onkeydown="if(event.key==='Enter')verify()">
-    <button class="btn" onclick="verify()" id="verifyBtn">인증하기</button>
+<!-- Loading State -->
+<div id="loadingScreen" class="center-box animate">
+  <div class="status-card">
+    <div class="spinner"></div>
+    <h2>확인 중...</h2>
+    <p>링크를 검증하고 있습니다.</p>
   </div>
 </div>
 
 <!-- Error Screen -->
-<div id="errorScreen" class="center-box" style="display:none">
-</div>
+<div id="errorScreen" class="center-box" style="display:none"></div>
 
 <!-- Content Screen -->
-<div id="contentScreen" style="display:none">
-</div>
+<div id="contentScreen" style="display:none"></div>
 
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
 
 if (!token) {
+  document.getElementById('loadingScreen').style.display = 'none';
   showError('🔗', '유효하지 않은 링크', '올바른 공유 링크를 통해 접근해주세요.');
-  document.getElementById('verifyScreen').style.display = 'none';
+} else {
+  verify();
 }
 
 async function verify() {
-  const email = document.getElementById('emailInput').value.trim();
-  if (!email) return;
-
-  const btn = document.getElementById('verifyBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
-
   try {
     const res = await fetch('/api/links/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, email })
+      body: JSON.stringify({ token })
     });
 
     const data = await res.json();
+    document.getElementById('loadingScreen').style.display = 'none';
 
     if (!res.ok) {
       const messages = {
         'NOT_FOUND': ['🔗', '유효하지 않은 링크', '이 링크는 존재하지 않거나 삭제되었습니다.'],
         'INACTIVE': ['⏸️', '비활성화된 링크', '관리자가 이 링크를 일시 중지했습니다.'],
         'EXPIRED': ['⏰', '만료된 링크', '이 링크의 유효 기간이 지났습니다.'],
-        'UNAUTHORIZED': ['🚫', '접근 권한 없음', '이 이메일은 접근이 허용되지 않았습니다.'],
         'MAX_VISITS': ['📊', '접근 횟수 초과', '이 링크의 최대 접근 횟수에 도달했습니다.'],
       };
       const [icon, title, desc] = messages[data.code] || ['❌', '접근 실패', data.error];
       showError(icon, title, desc);
-      document.getElementById('verifyScreen').style.display = 'none';
       return;
     }
 
-    // ✅ 접근 성공
-    document.getElementById('verifyScreen').style.display = 'none';
     showContent(data);
 
   } catch (err) {
+    document.getElementById('loadingScreen').style.display = 'none';
     showError('⚠️', '서버 오류', '잠시 후 다시 시도해주세요.');
-    document.getElementById('verifyScreen').style.display = 'none';
   }
 }
 
@@ -175,30 +128,26 @@ function showError(icon, title, desc) {
       <div class="icon">${icon}</div>
       <h3>${title}</h3>
       <p>${desc}</p>
-    </div>
-  `;
+    </div>`;
 }
 
 function showContent(data) {
   const screen = document.getElementById('contentScreen');
   screen.style.display = 'block';
 
-  // 리디렉트 유형
   if (data.contentType === 'redirect' && data.redirectUrl) {
     screen.innerHTML = `
       <div class="center-box animate">
-        <div class="verify-card">
-          <div class="shield-icon">✅</div>
+        <div class="status-card">
+          <div class="icon" style="font-size:48px">✅</div>
           <h2>인증 완료</h2>
-          <p class="desc">잠시 후 페이지로 이동합니다...</p>
+          <p>잠시 후 페이지로 이동합니다...</p>
         </div>
-      </div>
-    `;
+      </div>`;
     setTimeout(() => { window.location.href = data.redirectUrl; }, 1500);
     return;
   }
 
-  // 이미지 유형
   if (data.contentType === 'image' && data.content) {
     screen.innerHTML = `
       <div class="content-area animate">
@@ -209,12 +158,10 @@ function showContent(data) {
           </div>
           <img src="${escHtml(data.content)}" alt="${escHtml(data.title)}" style="width:100%">
         </div>
-      </div>
-    `;
+      </div>`;
     return;
   }
 
-  // HTML 유형 (기본)
   screen.innerHTML = `
     <div class="content-area animate">
       <div class="content-frame">
@@ -224,15 +171,14 @@ function showContent(data) {
         </div>
         <div class="content-body">${data.content || '<p style="color:var(--text3)">콘텐츠가 없습니다.</p>'}</div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 function escHtml(str) {
   if (!str) return '';
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
 }
 </script>
 </body>
