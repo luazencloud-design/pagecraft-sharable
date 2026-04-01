@@ -10,10 +10,10 @@ export default async function handler(req, res) {
   try {
     const store = await getStore();
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { token, email } = body;
+    const { token } = body;
 
-    if (!token || !email) {
-      return res.status(400).json({ error: '토큰과 이메일이 필요합니다.' });
+    if (!token) {
+      return res.status(400).json({ error: '토큰이 필요합니다.' });
     }
 
     const raw = await store.get(`link:${token}`);
@@ -33,13 +33,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: '만료된 링크입니다.', code: 'EXPIRED' });
     }
 
-    // 3. 이메일 허용 확인
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!link.allowedEmails.includes(normalizedEmail)) {
-      return res.status(403).json({ error: '접근 권한이 없습니다.', code: 'UNAUTHORIZED' });
-    }
-
-    // 4. 최대 방문 횟수 확인
+    // 3. 최대 방문 횟수 확인
     if (link.maxVisits > 0 && link.currentVisits >= link.maxVisits) {
       return res.status(403).json({ error: '최대 접근 횟수를 초과했습니다.', code: 'MAX_VISITS' });
     }
@@ -47,9 +41,9 @@ export default async function handler(req, res) {
     // ✅ 접근 허용 → 방문 카운트 증가
     link.currentVisits += 1;
     link.visitLog.push({
-      email: normalizedEmail,
       visitedAt: new Date().toISOString(),
       visitNumber: link.currentVisits,
+      ip: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown',
     });
 
     await store.set(`link:${token}`, JSON.stringify(link));

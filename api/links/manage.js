@@ -42,13 +42,10 @@ export default async function handler(req, res) {
     // 수정
     if (action === 'update') {
       const link = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      const { maxVisits, expiresAt, allowedEmails, title } = body;
+      const { maxVisits, expiresAt, title } = body;
       if (title !== undefined) link.title = title;
       if (maxVisits !== undefined) link.maxVisits = parseInt(maxVisits) || 0;
       if (expiresAt !== undefined) link.expiresAt = expiresAt || null;
-      if (allowedEmails !== undefined) {
-        link.allowedEmails = allowedEmails.map(e => e.trim().toLowerCase());
-      }
       await store.set(`link:${token}`, JSON.stringify(link));
       return res.status(200).json({ success: true, data: link });
     }
