@@ -25,10 +25,7 @@ export default async function handler(req, res) {
       const raw = await store.get(key);
       if (raw) {
         const link = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        // 콘텐츠는 목록에서 제외 (용량 절약)
-        const { content, ...summary } = link;
-        summary.hasContent = !!content;
-        links.push(summary);
+        links.push(link);
       }
     }
 

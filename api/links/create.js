@@ -25,9 +25,6 @@ export default async function handler(req, res) {
       title,
       maxVisits,
       expiresAt,
-      content,
-      contentType,
-      redirectUrl,
     } = body;
 
     if (!title) return res.status(400).json({ error: '제목(title)은 필수입니다.' });
@@ -41,9 +38,6 @@ export default async function handler(req, res) {
       currentVisits: 0,
       visitLog: [],
       expiresAt: expiresAt || null,
-      content: content || null,
-      contentType: contentType || 'html',
-      redirectUrl: redirectUrl || null,
       createdAt: new Date().toISOString(),
       active: true,
     };
