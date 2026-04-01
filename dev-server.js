@@ -59,7 +59,7 @@ async function handleAPI(req, res, pathname) {
   // ── POST /api/links/create ──
   if (pathname === '/api/links/create' && req.method === 'POST') {
     if (auth !== ADMIN_PASSWORD) return json({ error: '관리자 인증 실패' }, 401);
-    const { title, maxVisits, expiresAt, content, contentType, redirectUrl } = body;
+    const { title, maxVisits, expiresAt } = body;
     if (!title) return json({ error: '제목은 필수입니다.' }, 400);
     const token = crypto.randomBytes(16).toString('hex');
     const linkData = {
@@ -67,9 +67,6 @@ async function handleAPI(req, res, pathname) {
       maxVisits: parseInt(maxVisits) || 0,
       currentVisits: 0, visitLog: [],
       expiresAt: expiresAt || null,
-      content: content || null,
-      contentType: contentType || 'html',
-      redirectUrl: redirectUrl || null,
       createdAt: new Date().toISOString(),
       active: true,
     };
@@ -86,9 +83,7 @@ async function handleAPI(req, res, pathname) {
       const raw = await kvStore.get(key);
       if (raw) {
         const link = JSON.parse(raw);
-        const { content, ...summary } = link;
-        summary.hasContent = !!content;
-        links.push(summary);
+        links.push(link);
       }
     }
     links.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
