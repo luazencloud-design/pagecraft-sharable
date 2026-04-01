@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PageCraft Pro — 링크 관리 어드민</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0c10;--surface:#13131a;--surface2:#1a1a24;--surface3:#21212e;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --accent:#e8c97a;--accent2:#f0dfa0;--accent-dim:rgba(232,201,122,0.12);
+  --text:#f0ede8;--text2:#9998a8;--text3:#555568;
+  --green:#3ecf8e;--red:#f87171;--blue:#60a5fa;
+  --font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font)}
+
+/* ── Titlebar ── */
+.titlebar{
+  height:48px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:100;
+}
+.tb-dots{display:flex;gap:7px}
+.tb-dot{width:12px;height:12px;border-radius:50%}
+.tb-dot.r{background:#ff5f57}.tb-dot.a{background:#febc2e}.tb-dot.g{background:#28c840}
+.tb-logo{flex:1;text-align:center;font-family:var(--serif);font-size:15px;letter-spacing:0.5px;color:var(--accent)}
+.tb-badge{font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2);padding:3px 10px;border-radius:4px;border:1px solid var(--border)}
+
+/* ── Layout ── */
+.container{max-width:960px;margin:0 auto;padding:32px 24px}
+h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:8px}
+.subtitle{color:var(--text3);font-size:13px;margin-bottom:32px;font-family:var(--mono)}
+
+/* ── Login ── */
+.login-box{
+  max-width:400px;margin:80px auto;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:40px;text-align:center;
+}
+.login-box h2{margin-bottom:16px}
+.login-box p{color:var(--text2);font-size:13px;margin-bottom:24px}
+
+/* ── Form Elements ── */
+input,textarea,select{
+  width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;
+  outline:none;transition:border-color 0.2s;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-family:var(--mono)}
+.form-group{margin-bottom:18px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+.btn{
+  padding:10px 20px;border:none;border-radius:8px;cursor:pointer;
+  font-family:var(--font);font-size:13px;font-weight:500;transition:all 0.2s;
+}
+.btn-primary{background:var(--accent);color:#0c0c10}
+.btn-primary:hover{background:var(--accent2)}
+.btn-danger{background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3)}
+.btn-danger:hover{background:rgba(248,113,113,0.25)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn-block{width:100%}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border)}
+.tab{
+  padding:10px 20px;font-size:13px;color:var(--text3);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all 0.2s;font-family:var(--mono);
+}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--text2)}
+
+/* ── Cards ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:20px;margin-bottom:16px;transition:border-color 0.2s;
+}
+.card:hover{border-color:var(--border2)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-title{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.card-meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.meta-item{font-size:11px;font-family:var(--mono);color:var(--text3);display:flex;align-items:center;gap:4px}
+.meta-item svg{width:12px;height:12px;opacity:0.5}
+
+/* ── Badges ── */
+.badge{
+  font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.badge-active{background:rgba(62,207,142,0.15);color:var(--green)}
+.badge-inactive{background:rgba(248,113,113,0.15);color:var(--red)}
+.badge-expired{background:rgba(153,152,168,0.15);color:var(--text2)}
+
+/* ── Email Tags ── */
+.email-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.email-tag{
+  font-size:11px;font-family:var(--mono);padding:3px 10px;border-radius:6px;
+  background:var(--accent-dim);color:var(--accent);
+}
+
+/* ── Visit Log ── */
+.visit-log{margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+.visit-log-title{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.visit-entry{font-size:11px;font-family:var(--mono);color:var(--text2);padding:4px 0;display:flex;justify-content:space-between}
+
+/* ── Copy URL ── */
+.url-box{
+  display:flex;align-items:center;gap:8px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:8px;padding:6px 12px;margin-top:10px;
+}
+.url-text{font-family:var(--mono);font-size:11px;color:var(--blue);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.copy-btn{
+  background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;
+  font-family:var(--mono);padding:4px 8px;border-radius:4px;transition:all 0.2s;
+}
+.copy-btn:hover{background:var(--surface3);color:var(--accent)}
+
+/* ── Card Actions ── */
+.card-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border2);
+  border-radius:10px;padding:12px 20px;font-size:13px;color:var(--text);
+  transform:translateY(100px);opacity:0;transition:all 0.3s;z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+
+/* ── Empty State ── */
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.3}
+.empty p{font-size:13px;margin-bottom:24px}
+
+/* ── Modal ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:300;
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border2);border-radius:16px;
+  padding:32px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;
+}
+.modal h3{font-family:var(--serif);font-size:18px;color:var(--accent);margin-bottom:20px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .form-row{grid-template-columns:1fr}
+  .card-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .container{padding:20px 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div class="titlebar">
+  <div class="tb-dots"><div class="tb-dot r"></div><div class="tb-dot a"></div><div class="tb-dot g"></div></div>
+  <span class="tb-logo">PageCraft Pro</span>
+  <a href="/" class="tb-badge" style="text-decoration:none">← 생성기로 돌아가기</a>
+  <span class="tb-badge">ADMIN</span>
+</div>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-box">
+  <h2>🔐 관리자 로그인</h2>
+  <p>접근 제어 링크를 관리하려면 관리자 비밀번호를 입력하세요.</p>
+  <div class="form-group">
+    <input type="password" id="adminPw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+  </div>
+  <button class="btn btn-primary btn-block" onclick="doLogin()">로그인</button>
+</div>
+
+<!-- Main App (hidden until login) -->
+<div id="mainApp" class="container" style="display:none">
+  <h2>접근 제어 링크 관리</h2>
+  <p class="subtitle">URL별 접근 횟수 · 기간 · 허용 사용자 제어</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('list')">📋 링크 목록</div>
+    <div class="tab" onclick="switchTab('create')">➕ 새 링크 생성</div>
+  </div>
+
+  <!-- Tab: List -->
+  <div id="tabList">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="linkCount">0개의 링크</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadLinks()">↻ 새로고침</button>
+    </div>
+    <div id="linkList"></div>
+  </div>
+
+  <!-- Tab: Create -->
+  <div id="tabCreate" style="display:none">
+    <div class="card" style="max-width:600px">
+      <div class="form-group">
+        <label>링크 제목 *</label>
+        <input type="text" id="cTitle" placeholder="예: 2026 S/S 컬렉션 미리보기">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>최대 접근 횟수 (0 = 무제한)</label>
+          <input type="number" id="cMaxVisits" value="10" min="0">
+        </div>
+        <div class="form-group">
+          <label>만료 일시</label>
+          <input type="datetime-local" id="cExpires">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>허용 이메일 목록 * (줄바꿈 또는 쉼표로 구분)</label>
+        <textarea id="cEmails" rows="4" placeholder="user1@example.com&#10;user2@example.com&#10;user3@example.com"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>콘텐츠 유형</label>
+        <select id="cContentType" onchange="toggleContentFields()">
+          <option value="html">HTML 콘텐츠</option>
+          <option value="redirect">외부 URL 리디렉트</option>
+          <option value="image">이미지 URL</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="fContent">
+        <label>공유할 HTML 콘텐츠</label>
+        <textarea id="cContent" rows="6" placeholder="공유할 HTML 콘텐츠를 입력하세요..."></textarea>
+      </div>
+
+      <div class="form-group" id="fRedirect" style="display:none">
+        <label>리디렉트 URL</label>
+        <input type="url" id="cRedirectUrl" placeholder="https://example.com/page">
+      </div>
+
+      <div class="form-group" id="fImage" style="display:none">
+        <label>이미지 URL</label>
+        <input type="url" id="cImageUrl" placeholder="https://example.com/image.png">
+      </div>
+
+      <button class="btn btn-primary btn-block" onclick="createLink()" id="createBtn">🔗 접근 제어 링크 생성</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for visit log -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal">
+    <h3>📊 방문 기록</h3>
+    <div id="logContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+let adminToken = '';
+const API_BASE = '/api/links';
+
+// ── Auth ──
+function doLogin() {
+  adminToken = document.getElementById('adminPw').value;
+  if (!adminToken) return showToast('비밀번호를 입력해주세요.', 'error');
+  // 테스트: 목록 호출로 인증 확인
+  fetch(`${API_BASE}/list`, {
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  }).then(r => {
+    if (r.ok) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      loadLinks();
+      showToast('로그인 성공!', 'success');
+    } else {
+      showToast('비밀번호가 올바르지 않습니다.', 'error');
+    }
+  }).catch(() => showToast('서버 연결 실패', 'error'));
+}
+
+// ── Tabs ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'list' && i === 0) || (tab === 'create' && i === 1));
+  });
+  document.getElementById('tabList').style.display = tab === 'list' ? 'block' : 'none';
+  document.getElementById('tabCreate').style.display = tab === 'create' ? 'block' : 'none';
+}
+
+function toggleContentFields() {
+  const type = document.getElementById('cContentType').value;
+  document.getElementById('fContent').style.display = type === 'html' ? 'block' : 'none';
+  document.getElementById('fRedirect').style.display = type === 'redirect' ? 'block' : 'none';
+  document.getElementById('fImage').style.display = type === 'image' ? 'block' : 'none';
+}
+
+// ── Load Links ──
+async function loadLinks() {
+  const container = document.getElementById('linkList');
+  container.innerHTML = '<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">로딩 중...</p>';
+  try {
+    const res = await fetch(`${API_BASE}/list`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const links = data.links || [];
+    document.getElementById('linkCount').textContent = `${links.length}개의 링크`;
+
+    if (links.length === 0) {
+      container.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">🔗</div>
+          <p>아직 생성된 링크가 없습니다.</p>
+          <button class="btn btn-primary" onclick="switchTab('create')">첫 번째 링크 만들기</button>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = links.map(link => renderLinkCard(link)).join('');
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--red);text-align:center">${err.message}</p>`;
+  }
+}
+
+function renderLinkCard(link) {
+  const now = new Date();
+  const expired = link.expiresAt && new Date(link.expiresAt) < now;
+  const maxReached = link.maxVisits > 0 && link.currentVisits >= link.maxVisits;
+
+  let statusBadge;
+  if (!link.active) statusBadge = '<span class="badge badge-inactive">● 비활성</span>';
+  else if (expired) statusBadge = '<span class="badge badge-expired">● 만료됨</span>';
+  else if (maxReached) statusBadge = '<span class="badge badge-expired">● 횟수 초과</span>';
+  else statusBadge = '<span class="badge badge-active">● 활성</span>';
+
+  const baseUrl = window.location.origin;
+  const shareUrl = `${baseUrl}/view?token=${link.token}`;
+
+  const visitInfo = link.maxVisits > 0
+    ? `${link.currentVisits} / ${link.maxVisits}`
+    : `${link.currentVisits} (무제한)`;
+
+  const expiryInfo = link.expiresAt
+    ? new Date(link.expiresAt).toLocaleString('ko-KR')
+    : '무기한';
+
+  const createdInfo = new Date(link.createdAt).toLocaleString('ko-KR');
+
+  return `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${statusBadge} ${escHtml(link.title)}</div>
+      </div>
+
+      <div class="card-meta">
+        <span class="meta-item">👁 방문: ${visitInfo}</span>
+        <span class="meta-item">⏰ 만료: ${expiryInfo}</span>
+        <span class="meta-item">📅 생성: ${createdInfo}</span>
+        <span class="meta-item">👥 허용: ${link.allowedEmails.length}명</span>
+      </div>
+
+      <div class="email-tags">
+        ${link.allowedEmails.map(e => `<span class="email-tag">${escHtml(e)}</span>`).join('')}
+      </div>
+
+      <div class="url-box">
+        <span class="url-text">${shareUrl}</span>
+        <button class="copy-btn" onclick="copyUrl('${shareUrl}')">복사</button>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn btn-ghost btn-sm" onclick="toggleLink('${link.token}')">${link.active ? '⏸ 비활성화' : '▶ 활성화'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="showLog('${link.token}')">📊 방문기록</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetVisits('${link.token}')">🔄 초기화</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteLink('${link.token}')">🗑 삭제</button>
+      </div>
+    </div>`;
+}
+
+// ── Create Link ──
+async function createLink() {
+  const title = document.getElementById('cTitle').value.trim();
+  const maxVisits = document.getElementById('cMaxVisits').value;
+  const expiresInput = document.getElementById('cExpires').value;
+  const emailsRaw = document.getElementById('cEmails').value.trim();
+  const contentType = document.getElementById('cContentType').value;
+
+  if (!title) return showToast('제목을 입력해주세요.', 'error');
+  if (!emailsRaw) return showToast('허용 이메일을 입력해주세요.', 'error');
+
+  const allowedEmails = emailsRaw.split(/[\n,]+/).map(e => e.trim()).filter(Boolean);
+  if (allowedEmails.length === 0) return showToast('유효한 이메일을 입력해주세요.', 'error');
+
+  let content = null, redirectUrl = null;
+  if (contentType === 'html') content = document.getElementById('cContent').value;
+  else if (contentType === 'redirect') redirectUrl = document.getElementById('cRedirectUrl').value;
+  else if (contentType === 'image') content = document.getElementById('cImageUrl').value;
+
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true;
+  btn.textContent = '생성 중...';
+
+  try {
+    const res = await fetch(`${API_BASE}/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        title, maxVisits, allowedEmails, contentType, content, redirectUrl,
+        expiresAt: expiresInput ? new Date(expiresInput).toISOString() : null,
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    showToast('링크가 성공적으로 생성되었습니다!', 'success');
+
+    // 입력 초기화
+    document.getElementById('cTitle').value = '';
+    document.getElementById('cEmails').value = '';
+    document.getElementById('cContent').value = '';
+    document.getElementById('cRedirectUrl').value = '';
+    document.getElementById('cImageUrl').value = '';
+
+    switchTab('list');
+    loadLinks();
+
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔗 접근 제어 링크 생성';
+  }
+}
+
+// ── Link Actions ──
+async function toggleLink(token) {
+  try {
+    const res = await fetch(`${API_BASE}/manage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ token, action: 'toggle' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast(data.active ? '링크가 활성화되었습니다.' : '링크가 비활성화되었습니다.', 'success');
+    loadLinks();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteLink(token) {
+  if (!confirm('정말 이 링크를 삭제하시겠습니까?')) return;
+  try {
+    const res = await fetch(`${API_BASE}/manage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ token, action: 'delete' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast('링크가 삭제되었습니다.', 'success');
+    loadLinks();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function resetVisits(token) {
+  if (!confirm('방문 기록을 초기화하시겠습니까?')) return;
+  try {
+    const res = await fetch(`${API_BASE}/manage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ token, action: 'resetVisits' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast('방문 기록이 초기화되었습니다.', 'success');
+    loadLinks();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function showLog(token) {
+  try {
+    // 리스트에서 가져올 수 없으므로, verify 대신 관리 API를 통해 가져옴
+    const res = await fetch(`${API_BASE}/list`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    const link = data.links.find(l => l.token === token);
+    if (!link) return showToast('링크를 찾을 수 없습니다.', 'error');
+
+    const log = link.visitLog || [];
+    const content = document.getElementById('logContent');
+
+    if (log.length === 0) {
+      content.innerHTML = '<p style="color:var(--text3);text-align:center;padding:20px">아직 방문 기록이 없습니다.</p>';
+    } else {
+      content.innerHTML = `
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;font-family:var(--mono)">총 ${log.length}건의 방문</p>
+        ${log.map((v, i) => `
+          <div class="visit-entry">
+            <span>#${v.visitNumber || i+1} — ${escHtml(v.email)}</span>
+            <span>${new Date(v.visitedAt).toLocaleString('ko-KR')}</span>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    document.getElementById('logModal').classList.add('show');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function closeModal() {
+  document.getElementById('logModal').classList.remove('show');
+}
+
+// ── Utilities ──
+function copyUrl(url) {
+  navigator.clipboard.writeText(url).then(() => showToast('URL이 복사되었습니다!', 'success'));
+}
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `toast show ${type}`;
+  setTimeout(() => toast.className = 'toast', 3000);
+}
+
+// ── Modal 외부 클릭 닫기 ──
+document.getElementById('logModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>
