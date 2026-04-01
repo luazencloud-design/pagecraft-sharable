@@ -458,6 +458,33 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* Scrollbar global */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+
+/* ── 세션 잠금 오버레이 ── */
+.lock-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(12,12,16,0.85);backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity 0.4s;
+}
+.lock-overlay.hidden{opacity:0;pointer-events:none}
+.lock-card{
+  background:var(--surface);border:1px solid var(--border2);border-radius:20px;
+  padding:48px 40px;text-align:center;max-width:420px;width:90%;
+  box-shadow:0 24px 64px rgba(0,0,0,0.5);
+}
+.lock-icon{font-size:56px;margin-bottom:20px}
+.lock-card h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:10px}
+.lock-card p{color:var(--text2);font-size:13px;line-height:1.8;margin-bottom:24px}
+.lock-card .lock-badge{
+  display:inline-block;font-family:var(--mono);font-size:11px;
+  color:var(--text3);background:var(--surface2);border:1px solid var(--border);
+  padding:4px 12px;border-radius:6px;
+}
+.lock-card a.lock-admin{
+  display:inline-block;margin-top:16px;font-size:12px;color:var(--accent);
+  text-decoration:none;opacity:0.6;transition:opacity 0.2s;
+}
+.lock-card a.lock-admin:hover{opacity:1}
 </style>
 </head>
 <body>
@@ -473,6 +500,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
   <div class="tb-badge">패션 · 의류 · 잡화</div>
   <a href="/admin" class="tb-badge" style="text-decoration:none;color:var(--accent);border-color:var(--accent);cursor:pointer" title="링크 관리 어드민">🔐 링크관리</a>
+</div>
+
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-card">
+    <div class="lock-icon">🔒</div>
+    <h2>접근 권한이 필요합니다</h2>
+    <p>이 AI 도구는 관리자가 발급한<br>전용 링크를 통해서만 사용할 수 있습니다.</p>
+    <div class="lock-badge">인증된 링크로 접속해주세요</div>
+    <br>
+    <a href="/admin" class="lock-admin">관리자이신가요? →</a>
+  </div>
 </div>
 
 <div class="app">
@@ -665,6 +703,40 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div class="toast" id="toast"></div>
 
 <script>
+// ── 세션 검증 ─────────────────────────────────
+let sessionValid = false;
+
+(async function checkSession() {
+  const params = new URLSearchParams(window.location.search);
+  const s = params.get('s');
+  if (!s) return; // 세션 없으면 잠금 유지
+
+  try {
+    const res = await fetch('/api/links/check-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken: s })
+    });
+    const data = await res.json();
+    if (data.valid) {
+      sessionValid = true;
+      document.getElementById('lockOverlay').classList.add('hidden');
+      // URL에서 세션 파라미터 숨기기 (깔끔하게)
+      history.replaceState(null, '', '/');
+    }
+  } catch (e) {
+    console.error('세션 확인 실패:', e);
+  }
+})();
+
+function requireSession() {
+  if (!sessionValid) {
+    toast('🔒 인증된 링크를 통해 접속해야 AI 기능을 사용할 수 있습니다.');
+    return false;
+  }
+  return true;
+}
+
 const imgs = [];
 let selF = [];
 let resultData = null;
@@ -956,6 +1028,7 @@ const loadSteps = [
 
 // ── 1. 상세페이지 생성 ─────────────────────────────────────
 document.getElementById('genBtn').onclick = async function() {
+  if (!requireSession()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const price = document.getElementById('price').value.trim();
@@ -1162,6 +1235,7 @@ function downloadImg() {
 
 // ── 2. 상품명 최적화 생성 ───────────────────────
 async function runTitleGen() {
+  if (!requireSession()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const cat   = document.getElementById('cat').value;
@@ -1253,6 +1327,7 @@ async function runTitleGen() {
 
 // ── 3. 쿠팡 태그 20개 생성 ──────────────────────
 async function runTagGen() {
+  if (!requireSession()) return;
   const brand = document.getElementById('brand').value.trim();
   const cat   = document.getElementById('cat').value;
   const feats = selF.length ? selF.join(', ') : '';

@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PageCraft Pro — 공유 콘텐츠</title>
+<title>PageCraft Pro — 접근 검증</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0c0c10;--surface:#13131a;--surface2:#1a1a24;--surface3:#21212e;
+  --bg:#0c0c10;--surface:#13131a;--surface2:#1a1a24;
   --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
-  --accent:#e8c97a;--accent2:#f0dfa0;--accent-dim:rgba(232,201,122,0.12);
+  --accent:#e8c97a;--accent2:#f0dfa0;
   --text:#f0ede8;--text2:#9998a8;--text3:#555568;
-  --green:#3ecf8e;--red:#f87171;--blue:#60a5fa;
+  --green:#3ecf8e;--red:#f87171;
   --font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;
 }
 html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font)}
@@ -22,69 +22,45 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 }
 .tb-logo{font-family:var(--serif);font-size:15px;letter-spacing:0.5px;color:var(--accent)}
 .center-box{max-width:440px;margin:80px auto;padding:0 20px}
-.status-card{
+.card{
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
   padding:40px;text-align:center;
 }
-.status-card .icon{font-size:48px;margin-bottom:16px}
-.status-card h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:8px}
-.status-card p{color:var(--text2);font-size:13px;line-height:1.7}
-.error-card{
-  background:var(--surface);border:1px solid rgba(248,113,113,0.3);border-radius:16px;
-  padding:40px;text-align:center;
-}
-.error-card .icon{font-size:48px;margin-bottom:16px}
-.error-card h3{color:var(--red);font-size:18px;margin-bottom:8px}
-.error-card p{color:var(--text2);font-size:13px;line-height:1.7}
-.content-area{max-width:900px;margin:24px auto;padding:0 20px}
-.content-frame{
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:32px;min-height:200px;
-}
-.content-frame img{max-width:100%;border-radius:8px}
-.content-meta{
-  display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);
-}
-.content-title{font-family:var(--serif);font-size:18px;color:var(--accent)}
-.remaining{font-family:var(--mono);font-size:11px;color:var(--text3)}
-@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.animate{animation:fadeIn 0.4s ease-out}
+.card .icon{font-size:48px;margin-bottom:16px}
+.card h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:8px}
+.card p{color:var(--text2);font-size:13px;line-height:1.7}
+.card.error{border-color:rgba(248,113,113,0.3)}
+.card.error h2{color:var(--red)}
 .spinner{
   width:32px;height:32px;border:3px solid var(--border2);border-top-color:var(--accent);
   border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 16px;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.animate{animation:fadeIn 0.4s ease-out}
+.progress{margin-top:20px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);animation:load 1.5s ease-in-out}
+@keyframes load{from{width:0}to{width:100%}}
 </style>
 </head>
 <body>
 
-<div class="titlebar">
-  <span class="tb-logo">PageCraft Pro</span>
-</div>
+<div class="titlebar"><span class="tb-logo">PageCraft Pro</span></div>
 
-<!-- Loading State -->
-<div id="loadingScreen" class="center-box animate">
-  <div class="status-card">
+<div id="screen" class="center-box animate">
+  <div class="card">
     <div class="spinner"></div>
-    <h2>확인 중...</h2>
-    <p>링크를 검증하고 있습니다.</p>
+    <h2>접근 검증 중...</h2>
+    <p>링크를 확인하고 있습니다.</p>
+    <div class="progress"><div class="progress-bar"></div></div>
   </div>
 </div>
 
-<!-- Error Screen -->
-<div id="errorScreen" class="center-box" style="display:none"></div>
-
-<!-- Content Screen -->
-<div id="contentScreen" style="display:none"></div>
-
 <script>
-const params = new URLSearchParams(window.location.search);
-const token = params.get('token');
+const token = new URLSearchParams(window.location.search).get('token');
 
 if (!token) {
-  document.getElementById('loadingScreen').style.display = 'none';
-  showError('🔗', '유효하지 않은 링크', '올바른 공유 링크를 통해 접근해주세요.');
+  show('error', '🔗', '유효하지 않은 링크', '올바른 공유 링크를 통해 접근해주세요.');
 } else {
   verify();
 }
@@ -96,89 +72,39 @@ async function verify() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token })
     });
-
     const data = await res.json();
-    document.getElementById('loadingScreen').style.display = 'none';
 
     if (!res.ok) {
-      const messages = {
-        'NOT_FOUND': ['🔗', '유효하지 않은 링크', '이 링크는 존재하지 않거나 삭제되었습니다.'],
-        'INACTIVE': ['⏸️', '비활성화된 링크', '관리자가 이 링크를 일시 중지했습니다.'],
-        'EXPIRED': ['⏰', '만료된 링크', '이 링크의 유효 기간이 지났습니다.'],
-        'MAX_VISITS': ['📊', '접근 횟수 초과', '이 링크의 최대 접근 횟수에 도달했습니다.'],
+      const msgs = {
+        'NOT_FOUND':   ['🔗', '유효하지 않은 링크', '이 링크는 존재하지 않거나 삭제되었습니다.'],
+        'INACTIVE':    ['⏸️', '비활성화된 링크', '관리자가 이 링크를 일시 중지했습니다.'],
+        'EXPIRED':     ['⏰', '만료된 링크', '이 링크의 유효 기간이 지났습니다.'],
+        'MAX_VISITS':  ['📊', '접근 횟수 초과', '이 링크의 최대 접근 횟수에 도달했습니다.'],
       };
-      const [icon, title, desc] = messages[data.code] || ['❌', '접근 실패', data.error];
-      showError(icon, title, desc);
+      const [icon, title, desc] = msgs[data.code] || ['❌', '접근 실패', data.error];
+      show('error', icon, title, desc);
       return;
     }
 
-    showContent(data);
+    // ✅ 성공 → 세션 토큰과 함께 메인 페이지로 이동
+    show('ok', '✅', '인증 완료!', '페이지로 이동합니다...');
+    setTimeout(() => {
+      window.location.href = '/?s=' + data.sessionToken;
+    }, 1000);
 
   } catch (err) {
-    document.getElementById('loadingScreen').style.display = 'none';
-    showError('⚠️', '서버 오류', '잠시 후 다시 시도해주세요.');
+    show('error', '⚠️', '서버 오류', '잠시 후 다시 시도해주세요.');
   }
 }
 
-function showError(icon, title, desc) {
-  const screen = document.getElementById('errorScreen');
-  screen.style.display = 'block';
-  screen.innerHTML = `
-    <div class="error-card animate">
+function show(type, icon, title, desc) {
+  document.getElementById('screen').innerHTML = `
+    <div class="card ${type === 'error' ? 'error' : ''} animate">
       <div class="icon">${icon}</div>
-      <h3>${title}</h3>
+      <h2>${title}</h2>
       <p>${desc}</p>
+      ${type === 'ok' ? '<div class="progress"><div class="progress-bar"></div></div>' : ''}
     </div>`;
-}
-
-function showContent(data) {
-  const screen = document.getElementById('contentScreen');
-  screen.style.display = 'block';
-
-  if (data.contentType === 'redirect' && data.redirectUrl) {
-    screen.innerHTML = `
-      <div class="center-box animate">
-        <div class="status-card">
-          <div class="icon" style="font-size:48px">✅</div>
-          <h2>인증 완료</h2>
-          <p>잠시 후 페이지로 이동합니다...</p>
-        </div>
-      </div>`;
-    setTimeout(() => { window.location.href = data.redirectUrl; }, 1500);
-    return;
-  }
-
-  if (data.contentType === 'image' && data.content) {
-    screen.innerHTML = `
-      <div class="content-area animate">
-        <div class="content-frame">
-          <div class="content-meta">
-            <span class="content-title">${escHtml(data.title)}</span>
-            ${data.remainingVisits !== null ? `<span class="remaining">남은 접근: ${data.remainingVisits}회</span>` : ''}
-          </div>
-          <img src="${escHtml(data.content)}" alt="${escHtml(data.title)}" style="width:100%">
-        </div>
-      </div>`;
-    return;
-  }
-
-  screen.innerHTML = `
-    <div class="content-area animate">
-      <div class="content-frame">
-        <div class="content-meta">
-          <span class="content-title">${escHtml(data.title)}</span>
-          ${data.remainingVisits !== null ? `<span class="remaining">남은 접근: ${data.remainingVisits}회</span>` : ''}
-        </div>
-        <div class="content-body">${data.content || '<p style="color:var(--text3)">콘텐츠가 없습니다.</p>'}</div>
-      </div>
-    </div>`;
-}
-
-function escHtml(str) {
-  if (!str) return '';
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
 }
 </script>
 </body>

@@ -17,17 +17,10 @@
     "api/generate.js": {
       "maxDuration": 30
     },
-    "api/links/create.js": {
-      "maxDuration": 10
-    },
-    "api/links/verify.js": {
-      "maxDuration": 10
-    },
-    "api/links/list.js": {
-      "maxDuration": 10
-    },
-    "api/links/manage.js": {
-      "maxDuration": 10
-    }
+    "api/links/create.js": { "maxDuration": 10 },
+    "api/links/verify.js": { "maxDuration": 10 },
+    "api/links/check-session.js": { "maxDuration": 10 },
+    "api/links/list.js": { "maxDuration": 10 },
+    "api/links/manage.js": { "maxDuration": 10 }
   }
 }
