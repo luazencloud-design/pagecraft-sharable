@@ -21,6 +21,7 @@
     "api/links/verify.js": { "maxDuration": 10 },
     "api/links/check-session.js": { "maxDuration": 10 },
     "api/links/list.js": { "maxDuration": 10 },
-    "api/links/manage.js": { "maxDuration": 10 }
+    "api/links/manage.js": { "maxDuration": 10 },
+    "api/links/status.js": { "maxDuration": 10 }
   }
 }
