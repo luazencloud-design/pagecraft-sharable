@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "framework": null,
+  "buildCommand": "node setup-fonts.js",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/share.html", "destination": "/share.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/render.js": {
+      "maxDuration": 60,
+      "includeFiles": "fonts/**"
+    },
+    "api/generate.js": {
+      "maxDuration": 30
+    }
+  }
+}

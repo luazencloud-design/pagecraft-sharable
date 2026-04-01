@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PageCraft Pro v2.0 — 상품 상세페이지 · 상품명 · 태그 생성기</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ── 다크 모드 (기본) ── */
+:root{
+  --bg:#0c0c10;
+  --surface:#13131a;
+  --surface2:#1a1a24;
+  --surface3:#21212e;
+  --border:rgba(255,255,255,0.06);
+  --border2:rgba(255,255,255,0.12);
+  --accent:#e8c97a;
+  --accent2:#f0dfa0;
+  --accent-dim:rgba(232,201,122,0.12);
+  --text:#f0ede8;
+  --text2:#9998a8;
+  --text3:#555568;
+  --green:#3ecf8e;
+  --red:#f87171;
+  --font:'Noto Sans KR',sans-serif;
+  --mono:'DM Mono',monospace;
+  --serif:'Playfair Display',serif;
+  --shadow:rgba(0,0,0,0.4);
+}
+
+/* ── 라이트 모드 ── */
+:root.light{
+  --bg:#f4f3f0;
+  --surface:#ffffff;
+  --surface2:#f0eeeb;
+  --surface3:#e8e6e2;
+  --border:rgba(0,0,0,0.07);
+  --border2:rgba(0,0,0,0.14);
+  --accent:#9b6e1a;
+  --accent2:#7a5210;
+  --accent-dim:rgba(155,110,26,0.10);
+  --text:#1a1a1a;
+  --text2:#5a5a6a;
+  --text3:#aaaabc;
+  --green:#1a7a50;
+  --red:#c0392b;
+  --shadow:rgba(0,0,0,0.12);
+}
+
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;transition:background 0.3s,color 0.3s}
+
+/* ── 테마 전환 버튼 ── */
+.theme-toggle{
+  width:36px;height:20px;border-radius:10px;
+  background:var(--surface3);border:1px solid var(--border2);
+  cursor:pointer;position:relative;transition:background 0.2s,border-color 0.2s;
+  flex-shrink:0;
+}
+.theme-toggle:hover{border-color:var(--accent)}
+.theme-toggle-knob{
+  position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--text2);transition:transform 0.2s,background 0.2s;
+}
+:root.light .theme-toggle-knob{
+  transform:translateX(16px);
+  background:var(--accent);
+}
+.theme-label{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  white-space:nowrap;transition:color 0.2s;
+}
+
+/* ── TITLEBAR ── */
+.titlebar{
+  height:48px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px;
+  position:fixed;top:0;left:0;right:0;z-index:100;
+}
+.tb-dots{display:flex;gap:7px}
+.tb-dot{width:12px;height:12px;border-radius:50%}
+.tb-dot.r{background:#ff5f57}.tb-dot.a{background:#febc2e}.tb-dot.g{background:#28c840}
+.tb-logo{
+  flex:1;text-align:center;
+  font-family:var(--serif);font-size:15px;letter-spacing:0.5px;color:var(--accent);
+}
+.tb-badge{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  background:var(--surface2);padding:3px 10px;border-radius:4px;border:1px solid var(--border);
+}
+
+/* ── MAIN LAYOUT ── */
+.app{
+  display:grid;
+  grid-template-columns:300px 1fr 320px;
+  height:calc(100vh - 48px);
+  margin-top:48px;
+  overflow:hidden;
+}
+
+/* ── LEFT PANEL ── */
+.left-panel{
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+.left-panel::-webkit-scrollbar{width:3px}
+.left-panel::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+
+.panel-section{padding:20px 18px 8px}
+.panel-section-title{
+  font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:12px;
+}
+
+/* Upload Zone */
+.upload-zone{
+  border:1.5px dashed var(--border2);border-radius:12px;
+  padding:20px 14px;text-align:center;cursor:pointer;
+  transition:all 0.2s;position:relative;overflow:hidden;
+}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:var(--accent-dim);opacity:0;transition:opacity 0.2s;
+}
+.upload-zone:hover::before,.upload-zone.drag::before{opacity:1}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent)}
+.upload-icon{font-size:24px;margin-bottom:8px}
+.upload-zone h4{font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)}
+.upload-zone p{font-size:11px;color:var(--text2);line-height:1.5}
+
+/* Thumb Grid */
+.thumb-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;padding:6px 18px 0}
+.thumb{
+  position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;
+  border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s;
+}
+.thumb:hover{border-color:var(--border2)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb-del{
+  position:absolute;top:3px;right:3px;width:18px;height:18px;
+  border-radius:50%;background:rgba(0,0,0,0.75);border:none;color:#fff;
+  font-size:10px;cursor:pointer;opacity:0;transition:opacity 0.15s;
+  display:flex;align-items:center;justify-content:center;
+}
+.thumb:hover .thumb-del{opacity:1}
+
+/* Fields */
+.divider{height:1px;background:var(--border);margin:8px 0}
+.field-group{padding:0 18px 10px}
+.field-label{
+  font-size:11px;font-weight:500;color:var(--text2);
+  margin-bottom:6px;display:flex;align-items:center;gap:5px;
+}
+.field-label .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:0.7}
+.field-input,.field-select,.field-textarea{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:8px 11px;font-size:12.5px;color:var(--text);
+  font-family:var(--font);outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+  appearance:none;
+}
+.field-input:focus,.field-select:focus,.field-textarea:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);
+}
+.field-input::placeholder,.field-textarea::placeholder{color:var(--text3);font-size:12px}
+.field-textarea{resize:vertical;min-height:68px;line-height:1.6}
+
+/* Chips */
+.chip-row{display:flex;flex-wrap:wrap;gap:5px;padding:0 18px 10px}
+.chip{
+  padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--text2);
+  transition:all 0.15s;font-family:var(--font);
+}
+.chip:hover{border-color:var(--border2);color:var(--text)}
+.chip.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent2)}
+
+/* Generate Button */
+.gen-wrap{padding:14px 18px 20px;margin-top:auto}
+.gen-btn{
+  width:100%;padding:12px;
+  background:var(--accent);border:none;border-radius:10px;
+  color:#0c0c10;font-size:13.5px;font-weight:700;font-family:var(--font);
+  cursor:pointer;letter-spacing:0.3px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all 0.2s;position:relative;overflow:hidden;
+}
+.gen-btn:hover:not(:disabled){
+  background:var(--accent2);transform:translateY(-1px);
+  box-shadow:0 8px 24px rgba(232,201,122,0.3);
+}
+.gen-btn:disabled{
+  background:var(--surface3);color:var(--text3);cursor:not-allowed;transform:none;box-shadow:none;
+}
+.gen-spinner{
+  width:15px;height:15px;border:2px solid rgba(12,12,16,0.3);
+  border-top-color:#0c0c10;border-radius:50%;
+  animation:spin 0.7s linear infinite;display:none;
+}
+.gen-btn.loading .gen-spinner{display:block}
+.gen-btn.loading .gen-txt{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── CENTER CANVAS ── */
+.canvas{
+  background:var(--bg);overflow-y:auto;
+  display:flex;flex-direction:column;align-items:center;padding:28px 20px;
+}
+.canvas::-webkit-scrollbar{width:4px}
+.canvas::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+
+.canvas-toolbar{
+  width:100%;max-width:660px;display:flex;align-items:center;gap:8px;margin-bottom:18px;
+}
+.canvas-file{font-size:11px;color:var(--text3);font-family:var(--mono);margin-right:auto}
+.toolbar-btn{
+  padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;
+  border:1px solid var(--border);background:var(--surface);color:var(--text2);
+  cursor:pointer;font-family:var(--font);transition:all 0.15s;
+  display:flex;align-items:center;gap:5px;
+}
+.toolbar-btn:hover{border-color:var(--border2);color:var(--text)}
+.toolbar-btn.primary{background:var(--accent);border-color:var(--accent);color:#0c0c10;font-weight:700}
+.toolbar-btn.primary:hover{background:var(--accent2)}
+
+/* Preview Frame */
+.preview-frame{
+  width:100%;max-width:660px;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  overflow:hidden;min-height:500px;
+}
+.frame-bar{
+  height:36px;background:var(--surface2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+}
+.frame-dots{display:flex;gap:5px}
+.frame-dot{width:10px;height:10px;border-radius:50%}
+.frame-dot.r{background:rgba(255,95,87,0.4)}.frame-dot.a{background:rgba(254,188,46,0.4)}.frame-dot.g{background:rgba(40,200,64,0.4)}
+.frame-url{
+  flex:1;background:var(--surface3);border-radius:5px;height:20px;
+  display:flex;align-items:center;padding:0 10px;
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+}
+
+/* Empty State */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:80px 30px;text-align:center;
+}
+.empty-icon{
+  width:72px;height:72px;background:var(--surface2);border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;margin-bottom:20px;border:1px solid var(--border);
+}
+.empty-state h3{font-size:15px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.empty-state p{font-size:13px;color:var(--text2);line-height:1.7}
+
+/* Loading State */
+.loading-state{
+  display:none;flex-direction:column;align-items:center;
+  justify-content:center;padding:80px 30px;text-align:center;
+}
+.loading-state.show{display:flex}
+.ai-ring-wrap{width:64px;height:64px;position:relative;margin-bottom:24px}
+.ai-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:2px solid transparent;border-top-color:var(--accent);
+  animation:spin 1s linear infinite;
+}
+.ai-ring:nth-child(2){inset:8px;border-top-color:var(--green);animation-duration:1.5s;animation-direction:reverse}
+.ai-core{
+  position:absolute;inset:18px;background:var(--accent-dim);border-radius:50%;
+  border:1px solid var(--accent);animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:0.4;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}
+.loading-msg{font-size:14px;font-weight:500;margin-bottom:5px;color:var(--text)}
+.loading-sub{font-size:11px;color:var(--text2);font-family:var(--mono)}
+
+/* Result Preview */
+.result-preview{display:none;padding:20px;max-height:70vh;overflow-y:auto}
+.result-preview.show{display:block}
+.result-preview::-webkit-scrollbar{width:6px}
+.result-preview::-webkit-scrollbar-track{background:var(--surface2);border-radius:3px}
+.result-preview::-webkit-scrollbar-thumb{background:var(--accent);border-radius:3px;opacity:0.7}
+.result-preview::-webkit-scrollbar-thumb:hover{opacity:1}
+.preview-img{width:100%;border-radius:8px;display:block}
+
+/* ── RIGHT PANEL ── */
+.right-panel{
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border)}
+.ptab{
+  flex:1;padding:13px 0;text-align:center;font-size:12px;font-weight:500;
+  color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all 0.15s;background:none;border-top:none;border-left:none;border-right:none;
+  font-family:var(--font);
+}
+.ptab:hover{color:var(--text2)}
+.ptab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body::-webkit-scrollbar{width:3px}
+.panel-body::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+
+/* Copy Blocks */
+.copy-block{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;margin-bottom:8px;overflow:hidden;
+}
+.copy-block-hdr{
+  padding:9px 13px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+}
+.copy-block-title{font-size:11px;font-weight:600;color:var(--text2)}
+.copy-btn{
+  padding:3px 10px;background:var(--surface3);border:1px solid var(--border);
+  border-radius:5px;font-size:11px;color:var(--text2);cursor:pointer;
+  font-family:var(--font);transition:all 0.15s;
+}
+.copy-btn:hover{border-color:var(--border2);color:var(--text)}
+.copy-btn.ok{color:var(--green);border-color:var(--green)}
+.copy-block-body{
+  padding:11px 13px;font-size:12px;color:var(--text2);line-height:1.7;white-space:pre-line;
+}
+
+/* Export Panel */
+.export-opt{
+  background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+  cursor:pointer;transition:border-color 0.15s;
+}
+.export-opt:hover{border-color:var(--border2)}
+.export-ico{
+  width:36px;height:36px;background:var(--surface3);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
+}
+.export-title{font-size:13px;font-weight:600;margin-bottom:2px;color:var(--text)}
+.export-desc{font-size:11px;color:var(--text2)}
+
+/* Status Bar */
+.statusbar{
+  height:26px;background:var(--surface);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 18px;gap:16px;
+  font-size:10px;color:var(--text3);font-family:var(--mono);
+  grid-column:1/-1;
+}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.status-right{margin-left:auto}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:30px;left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:8px;padding:10px 18px;font-size:13px;color:var(--text);
+  opacity:0;transition:all 0.25s;pointer-events:none;z-index:9999;
+  box-shadow:0 8px 32px rgba(0,0,0,0.6);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Error */
+.err-box{
+  margin:16px 20px;padding:12px 14px;
+  background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);
+  border-radius:8px;font-size:12px;color:var(--red);line-height:1.6;display:none;
+}
+.err-box.show{display:block}
+
+/* Tool Panels */
+.tool-section-header{margin-bottom:14px}
+.tool-section-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
+.tool-section-desc{font-size:11px;color:var(--text2);line-height:1.6}
+.tool-run-btn{
+  width:100%;padding:10px;border-radius:8px;
+  background:var(--accent);border:none;color:#0c0c10;
+  font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all 0.2s;
+}
+.tool-run-btn:hover:not(:disabled){background:var(--accent2);transform:translateY(-1px)}
+.tool-run-btn:disabled{background:var(--surface3);color:var(--text3);cursor:not-allowed;transform:none}
+.tool-spinner{width:13px;height:13px;border:2px solid rgba(12,12,16,0.3);border-top-color:#0c0c10;border-radius:50%;animation:spin 0.7s linear infinite;display:none}
+.tool-run-btn.loading .tool-spinner{display:block}
+.tool-run-btn.loading .tool-btn-txt{display:none}
+.title-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:7px;position:relative}
+.title-rank{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:5px}
+.title-text{font-size:12.5px;color:var(--text);line-height:1.5;padding-right:52px}
+.title-copy{position:absolute;top:11px;right:11px;padding:3px 9px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--font);transition:all 0.15s}
+.title-copy:hover{border-color:var(--border2);color:var(--text)}
+.title-copy.ok{color:var(--green);border-color:var(--green)}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.tag-item{padding:4px 10px;border-radius:20px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all 0.15s;font-family:var(--font)}
+.tag-item:hover{border-color:var(--accent);color:var(--accent)}
+.tag-copy-all{width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--font);transition:all 0.15s}
+.tag-copy-all:hover{border-color:var(--border2);color:var(--text)}
+.tag-copy-all.ok{color:var(--green);border-color:var(--green)}
+.tool-empty{text-align:center;padding:30px 16px;color:var(--text3);font-size:12px;line-height:1.7}
+
+/* 배경 제거 토글 */
+.bgremove-row{
+  display:flex;align-items:center;gap:8px;padding:8px 18px 4px;
+}
+.bgremove-toggle{
+  width:34px;height:18px;border-radius:9px;
+  background:var(--surface3);border:1px solid var(--border2);
+  cursor:pointer;position:relative;transition:all 0.2s;flex-shrink:0;
+}
+.bgremove-toggle.on{background:var(--accent);border-color:var(--accent)}
+.bgremove-toggle-knob{
+  position:absolute;top:2px;left:2px;width:12px;height:12px;
+  border-radius:50%;background:var(--text2);transition:all 0.2s;
+}
+.bgremove-toggle.on .bgremove-toggle-knob{
+  transform:translateX(16px);background:#0c0c10;
+}
+.bgremove-label{font-size:11px;color:var(--text2);flex:1}
+.bgremove-badge{
+  font-size:9px;padding:2px 6px;border-radius:4px;
+  background:var(--accent-dim);color:var(--accent);font-weight:600;
+}
+.bgremove-status{
+  font-size:10px;color:var(--text3);font-family:var(--mono);
+  padding:0 18px 6px;display:none;
+}
+.bgremove-status.show{display:block}
+.bgremove-progress{
+  height:3px;background:var(--surface3);border-radius:2px;
+  margin-top:4px;overflow:hidden;
+}
+.bgremove-progress-bar{
+  height:100%;background:var(--accent);border-radius:2px;
+  width:0%;transition:width 0.3s;
+}
+
+/* 배경 제거 처리 중 오버레이 */
+.thumb-processing{
+  position:absolute;inset:0;background:rgba(12,12,16,0.8);
+  display:flex;align-items:center;justify-content:center;
+  z-index:2;
+}
+.thumb-processing .mini-spinner{
+  width:16px;height:16px;border:2px solid rgba(232,201,122,0.3);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin 0.7s linear infinite;
+}
+.thumb-done{
+  position:absolute;top:3px;left:3px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--green);color:#fff;font-size:9px;
+  display:flex;align-items:center;justify-content:center;
+  z-index:2;
+}
+
+/* ── 공유 링크 패널 ── */
+.link-section{margin-bottom:16px}
+.link-section-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.link-section-title .link-icon{font-size:14px}
+.link-row{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.link-num-input{
+  width:72px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);
+  font-family:var(--mono);outline:none;text-align:center;
+  transition:border-color 0.15s,box-shadow 0.15s;
+  -moz-appearance:textfield;
+}
+.link-num-input::-webkit-outer-spin-button,
+.link-num-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.link-num-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.link-unit-select{
+  width:72px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:8px 6px;font-size:12px;color:var(--text);
+  font-family:var(--font);outline:none;cursor:pointer;
+  transition:border-color 0.15s,box-shadow 0.15s;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239998a8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+  padding-right:22px;
+}
+.link-unit-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.link-row-label{font-size:11px;color:var(--text2);margin-left:2px;white-space:nowrap}
+.link-hint{font-size:10px;color:var(--text3);line-height:1.5;margin-bottom:14px;padding-left:2px}
+.link-gen-btn{
+  width:100%;padding:11px;border-radius:8px;
+  background:var(--accent);border:none;color:#0c0c10;
+  font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all 0.2s;margin-bottom:16px;
+}
+.link-gen-btn:hover:not(:disabled){background:var(--accent2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,201,122,0.25)}
+.link-gen-btn:disabled{background:var(--surface3);color:var(--text3);cursor:not-allowed;transform:none;box-shadow:none}
+.link-result-box{
+  background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:12px;margin-bottom:8px;animation:fadeIn 0.25s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.link-result-url{
+  font-family:var(--mono);font-size:11px;color:var(--accent);
+  word-break:break-all;line-height:1.6;margin-bottom:10px;
+  background:var(--surface3);padding:8px 10px;border-radius:6px;
+  border:1px solid var(--border);user-select:all;
+}
+.link-result-meta{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.link-meta-tag{
+  font-size:10px;color:var(--text3);background:var(--surface3);
+  padding:3px 8px;border-radius:4px;display:flex;align-items:center;gap:4px;
+}
+.link-meta-tag .val{color:var(--text2);font-weight:600}
+.link-result-actions{display:flex;gap:6px}
+.link-copy-btn,.link-del-btn{
+  flex:1;padding:7px;border-radius:6px;font-size:11px;font-weight:600;
+  font-family:var(--font);cursor:pointer;border:1px solid var(--border);
+  transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:4px;
+}
+.link-copy-btn{background:var(--surface3);color:var(--text2)}
+.link-copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.link-copy-btn.ok{border-color:var(--green);color:var(--green)}
+.link-del-btn{background:transparent;color:var(--text3)}
+.link-del-btn:hover{border-color:var(--red);color:var(--red)}
+.link-empty{text-align:center;padding:30px 16px;color:var(--text3);font-size:12px;line-height:1.7}
+.link-divider{height:1px;background:var(--border);margin:14px 0}
+.link-list-title{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.unit-auto-badge{
+  display:inline-block;font-size:9px;color:var(--green);font-weight:600;
+  opacity:0;transition:opacity 0.25s;margin-left:4px;
+}
+.unit-auto-badge.show{opacity:1}
+
+/* Scrollbar global */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <img src="data:image/png;base64,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" alt="MagicOne" style="height:32px;object-fit:contain;flex-shrink:0;">
+  <div class="tb-logo">✦ PageCraft Pro</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="theme-label" id="themeLabel">🌙 다크</span>
+    <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="라이트/다크 모드 전환">
+      <div class="theme-toggle-knob"></div>
+    </div>
+  </div>
+  <div class="tb-badge">패션 · 의류 · 잡화</div>
+</div>
+
+<div class="app">
+
+<aside class="left-panel">
+
+  <div class="panel-section">
+    <div class="panel-section-title">상품 사진</div>
+    <div class="upload-zone" id="dz">
+      <div class="upload-icon">📷</div>
+      <h4>사진 업로드</h4>
+      <p>클릭하거나 드래그<br>JPG · PNG · 최대 5장</p>
+      <input type="file" id="fi" accept="image/*" multiple style="display:none">
+    </div>
+  </div>
+  <div class="bgremove-row">
+    <div class="bgremove-toggle" id="bgToggle" onclick="toggleBgRemove()">
+      <div class="bgremove-toggle-knob"></div>
+    </div>
+    <span class="bgremove-label">배경 자동 제거</span>
+    <span class="bgremove-badge">AI</span>
+  </div>
+  <div class="bgremove-status" id="bgStatus">
+    <span id="bgStatusText">배경 제거 준비 중...</span>
+    <div class="bgremove-progress"><div class="bgremove-progress-bar" id="bgProgressBar"></div></div>
+  </div>
+  <div id="thumbGrid" class="thumb-grid"></div>
+
+  <div class="divider"></div>
+
+  <div class="panel-section"><div class="panel-section-title">상품 정보</div></div>
+
+  <div class="field-group">
+    <div class="field-label"><span class="dot"></span>브랜드명</div>
+    <input id="brand" class="field-input" placeholder="예: 내셔널 지오그래픽">
+  </div>
+  <div class="field-group">
+    <div class="field-label"><span class="dot"></span>상품명</div>
+    <input id="pname" class="field-input" placeholder="예: 슬라이드 슬리퍼 남녀공용">
+  </div>
+  <div class="field-group">
+    <div class="field-label"><span class="dot"></span>판매 가격</div>
+    <input id="price" class="field-input" placeholder="예: 39,900">
+  </div>
+  <div class="field-group">
+    <div class="field-label"><span class="dot"></span>카테고리</div>
+    <select id="cat" class="field-select">
+      <option>패딩/점퍼</option><option>집업/후리스</option><option>티셔츠/맨투맨</option>
+      <option>바지/하의</option><option>가방/배낭</option><option>모자/액세서리</option>
+      <option>신발/부츠</option><option>슬리퍼/샌들</option><option>스카프/머플러</option>
+      <option>기타 의류/잡화</option>
+    </select>
+  </div>
+  <div class="field-group">
+    <div class="field-label"><span class="dot"></span>플랫폼</div>
+    <select id="pf" class="field-select">
+      <option>쿠팡</option><option>스마트스토어</option>
+      <option>쿠팡+스마트스토어</option><option>기타</option>
+    </select>
+  </div>
+  <div class="field-group">
+    <div class="field-label"><span class="dot"></span>추가 설명 (선택)</div>
+    <textarea id="memo" class="field-textarea" placeholder="색상, 소재, 특징, 타깃 고객 등 자유롭게 입력"></textarea>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="panel-section"><div class="panel-section-title">강조 특징</div></div>
+  <div class="chip-row" id="chips">
+    <button class="chip" data-v="방수">방수</button>
+    <button class="chip" data-v="방풍">방풍</button>
+    <button class="chip" data-v="보온">보온</button>
+    <button class="chip" data-v="경량">경량</button>
+    <button class="chip" data-v="신축성">신축성</button>
+    <button class="chip" data-v="UV차단">UV차단</button>
+    <button class="chip" data-v="친환경">친환경</button>
+    <button class="chip" data-v="남녀공용">남녀공용</button>
+    <button class="chip" data-v="캠핑">캠핑</button>
+    <button class="chip" data-v="일상착용">일상착용</button>
+    <button class="chip" data-v="선물용">선물용</button>
+    <button class="chip" data-v="커플">커플</button>
+  </div>
+
+  <div class="divider"></div>
+  <div class="gen-wrap">
+    <button class="gen-btn" id="genBtn">
+      <div class="gen-spinner"></div>
+      <span class="gen-txt">✦ AI 상세페이지 생성</span>
+    </button>
+  </div>
+</aside>
+
+<main class="canvas">
+  <div class="canvas-toolbar">
+    <span class="canvas-file">preview.html</span>
+    <button class="toolbar-btn" id="copyAllBtn" style="display:none" onclick="copyAll()">📋 전체 복사</button>
+    <button class="toolbar-btn primary" id="dlBtn" style="display:none" onclick="downloadImg()">⬇ 이미지 저장</button>
+  </div>
+
+  <div class="preview-frame" id="previewFrame">
+    <div class="frame-bar">
+      <div class="frame-dots">
+        <div class="frame-dot r"></div><div class="frame-dot a"></div><div class="frame-dot g"></div>
+      </div>
+      <div class="frame-url">pagecraft://preview · 상세페이지 미리보기</div>
+    </div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🛍</div>
+      <h3>상품 정보를 입력해주세요</h3>
+      <p>사진을 업로드하고 상품 정보를 입력한 뒤<br>AI 생성 버튼을 누르면 바로 만들어집니다.</p>
+    </div>
+
+    <div class="loading-state" id="loadingState">
+      <div class="ai-ring-wrap">
+        <div class="ai-ring"></div>
+        <div class="ai-ring"></div>
+        <div class="ai-core"></div>
+      </div>
+      <div class="loading-msg" id="loadMsg">이미지 분석 중...</div>
+      <div class="loading-sub" id="loadSub">AI가 상품을 파악하고 있습니다</div>
+    </div>
+
+    <div class="err-box" id="errBox"></div>
+    <div class="result-preview" id="resultPreview">
+      <img id="previewImg" class="preview-img" src="" alt="상세페이지 미리보기">
+    </div>
+  </div>
+</main>
+
+<aside class="right-panel">
+  <div class="panel-tabs">
+    <button class="ptab active" data-tab="copy">📄 텍스트</button>
+    <button class="ptab" data-tab="title">✨ 상품명</button>
+    <button class="ptab" data-tab="tags">🏷 태그</button>
+    <button class="ptab" data-tab="link">🔗 링크</button>
+    <button class="ptab" data-tab="export">⬇ 내보내기</button>
+  </div>
+
+  <div class="panel-body" id="panelCopy">
+    <div style="text-align:center;padding:60px 16px;color:var(--text3);font-size:13px;line-height:1.8">
+      생성 후 각 항목을<br>바로 복사할 수 있습니다
+    </div>
+  </div>
+
+  <div class="panel-body" id="panelTitle" style="display:none">
+    <div class="tool-section-header">
+      <div class="tool-section-title">✨ 상품명 최적화</div>
+      <div class="tool-section-desc">SEO에 최적화된 상품명 5가지를 생성합니다.<br>검색 노출과 클릭률을 높이는 버전을 선택하세요.</div>
+    </div>
+    <button class="tool-run-btn" id="titleBtn" onclick="runTitleGen()">
+      <span class="tool-btn-txt">✨ 최적화 상품명 5개 생성</span>
+      <div class="tool-spinner"></div>
+    </button>
+    <div id="titleResult" style="margin-top:12px"></div>
+  </div>
+
+  <div class="panel-body" id="panelTags" style="display:none">
+    <div class="tool-section-header">
+      <div class="tool-section-title">🏷 쿠팡 태그 20개</div>
+      <div class="tool-section-desc">검색량과 연관성 기반의 쿠팡 최적화 태그를 생성합니다.</div>
+    </div>
+    <button class="tool-run-btn" id="tagsBtn" onclick="runTagGen()">
+      <span class="tool-btn-txt">🏷 태그 20개 생성</span>
+      <div class="tool-spinner"></div>
+    </button>
+    <div id="tagsResult" style="margin-top:12px"></div>
+  </div>
+
+  <div class="panel-body" id="panelLink" style="display:none">
+    <div class="link-section">
+      <div class="link-section-title"><span class="link-icon">🔗</span> 공유 링크 생성</div>
+      <div class="link-hint">생성된 상세페이지를 제한된 횟수와 기간 동안만 열 수 있는 공유 링크를 만듭니다.</div>
+    </div>
+
+    <div class="link-section">
+      <div class="link-section-title"><span class="link-icon">👥</span> 사용 횟수</div>
+      <div class="link-row">
+        <input type="number" id="linkMaxUses" class="link-num-input" value="10" min="1" max="99999">
+        <span class="link-row-label">회까지 열람 가능</span>
+      </div>
+    </div>
+
+    <div class="link-section">
+      <div class="link-section-title"><span class="link-icon">⏱</span> 유효 기간 <span class="unit-auto-badge" id="unitAutoBadge">✓ 자동 변환됨</span></div>
+      <div class="link-row">
+        <input type="number" id="linkDuration" class="link-num-input" value="1" min="1" max="99999" oninput="autoConvertUnit()">
+        <select id="linkUnit" class="link-unit-select" onchange="autoConvertUnit()">
+          <option value="min">분</option>
+          <option value="hour">시간</option>
+          <option value="day" selected>일</option>
+          <option value="week">주</option>
+          <option value="month">달</option>
+          <option value="year">년</option>
+        </select>
+        <span class="link-row-label">동안 유효</span>
+      </div>
+      <div class="link-hint" id="linkDurationHint">링크 생성 시점부터 1일 후 만료</div>
+    </div>
+
+    <button class="link-gen-btn" id="linkGenBtn" onclick="generateShareLink()" disabled>
+      🔗 공유 링크 생성
+    </button>
+
+    <div class="link-divider"></div>
+    <div class="link-list-title">생성된 링크</div>
+    <div id="linkList">
+      <div class="link-empty">아직 생성된 링크가 없습니다.<br>상세페이지를 먼저 생성해주세요.</div>
+    </div>
+  </div>
+
+  <div class="panel-body" id="panelExport" style="display:none">
+    <div style="font-size:10px;color:var(--text3);margin-bottom:14px;letter-spacing:2px;text-transform:uppercase;font-weight:600">내보내기 옵션</div>
+    <div class="export-opt" onclick="downloadImg()">
+      <div class="export-ico">🖼</div>
+      <div><div class="export-title">이미지 저장 (PNG)</div><div class="export-desc">상세페이지 이미지 다운로드</div></div>
+    </div>
+    <div class="export-opt" onclick="copyAll()">
+      <div class="export-ico">📋</div>
+      <div><div class="export-title">전체 텍스트 복사</div><div class="export-desc">모든 내용 클립보드 복사</div></div>
+    </div>
+  </div>
+</aside>
+
+<div class="statusbar" style="position:fixed;bottom:0;left:0;right:0;z-index:50">
+  <div style="display:flex;align-items:center;gap:5px"><div class="status-dot"></div><span>Ready</span></div>
+  <span id="statusImgs">사진 0장</span>
+  <span id="statusPf">플랫폼: 쿠팡</span>
+  <span class="status-right">PageCraft Pro v2.0</span>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const imgs = [];
+let selF = [];
+let resultData = null;
+let generatedImgDataUrl = null;
+let bgRemoveEnabled = false;
+let bgRemoveModel = null;
+let bgRemoveModelLoading = false;
+
+// ── 테마 전환 ─────────────────────────────────
+const root = document.documentElement;
+const savedTheme = localStorage.getItem('pagecraft-theme') || 'dark';
+if (savedTheme === 'light') applyLight();
+
+function toggleTheme() {
+  if (root.classList.contains('light')) {
+    root.classList.remove('light');
+    document.getElementById('themeLabel').textContent = '🌙 다크';
+    localStorage.setItem('pagecraft-theme', 'dark');
+  } else {
+    applyLight();
+    localStorage.setItem('pagecraft-theme', 'light');
+  }
+}
+
+function applyLight() {
+  root.classList.add('light');
+  const label = document.getElementById('themeLabel');
+  if (label) label.textContent = '☀️ 라이트';
+}
+
+// ── [해결책 1] 이미지 리사이징/압축 유틸 함수 ────────────────
+function compressImage(file, maxWidth = 800) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxWidth || h > maxWidth) {
+          if (w > h) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+          else { w = Math.round(w * maxWidth / h); h = maxWidth; }
+        }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        
+        // 투명 배경 유지를 위해 PNG는 가급적 PNG로 반환, 그 외는 JPEG 80% 압축
+        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        resolve(canvas.toDataURL(mimeType, 0.8));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── 배경 제거 (브라우저 내 ONNX) ────────────────
+function toggleBgRemove() {
+  const toggle = document.getElementById('bgToggle');
+  bgRemoveEnabled = !bgRemoveEnabled;
+  toggle.classList.toggle('on', bgRemoveEnabled);
+
+  if (bgRemoveEnabled && !bgRemoveModel && !bgRemoveModelLoading) {
+    loadBgRemoveModel();
+  }
+
+  // 이미 업로드된 이미지가 있으면 배경 제거 다시 처리
+  if (bgRemoveEnabled && imgs.length > 0) {
+    processAllBgRemoval();
+  } else if (!bgRemoveEnabled && imgs.length > 0) {
+    // 토글 해제 시 원본으로 복원
+    imgs.forEach(im => { if (im.original) im.data = im.original; });
+    renderThumbs();
+  }
+}
+
+async function loadBgRemoveModel() {
+  bgRemoveModelLoading = true;
+  const statusEl = document.getElementById('bgStatus');
+  const statusText = document.getElementById('bgStatusText');
+  const progressBar = document.getElementById('bgProgressBar');
+
+  statusEl.classList.add('show');
+  statusText.textContent = 'AI 배경 제거 모델 로딩 중...';
+  progressBar.style.width = '10%';
+
+  try {
+    // @imgly/background-removal (브라우저 전용, ONNX 기반)
+    // CDN에서 ESM 로드
+    progressBar.style.width = '30%';
+    statusText.textContent = '모델 다운로드 중 (최초 1회)...';
+
+    const module = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
+    bgRemoveModel = module;
+
+    progressBar.style.width = '100%';
+    statusText.textContent = '✅ 배경 제거 준비 완료';
+    setTimeout(() => statusEl.classList.remove('show'), 2000);
+  } catch (e) {
+    console.error('배경 제거 모델 로드 실패:', e);
+    statusText.textContent = '⚠️ 모델 로드 실패 - 원본 이미지 사용';
+    progressBar.style.width = '0%';
+    setTimeout(() => statusEl.classList.remove('show'), 3000);
+    bgRemoveEnabled = false;
+    document.getElementById('bgToggle').classList.remove('on');
+  }
+  bgRemoveModelLoading = false;
+}
+
+async function removeBgFromDataUrl(dataUrl) {
+  if (!bgRemoveModel) return dataUrl;
+  try {
+    // dataUrl → Blob → 배경 제거 → dataUrl
+    const resp = await fetch(dataUrl);
+    const blob = await resp.blob();
+    const resultBlob = await bgRemoveModel.removeBackground(blob, {
+      output: { format: 'image/png', quality: 0.9 }
+    });
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(resultBlob);
+    });
+  } catch (e) {
+    console.error('배경 제거 실패:', e);
+    return dataUrl; // 실패 시 원본 반환
+  }
+}
+
+async function processAllBgRemoval() {
+  if (!bgRemoveEnabled) return;
+
+  // 모델이 아직 로딩 중이면 기다림
+  if (bgRemoveModelLoading) {
+    const waitForModel = () => new Promise(resolve => {
+      const check = setInterval(() => {
+        if (!bgRemoveModelLoading) { clearInterval(check); resolve(); }
+      }, 300);
+    });
+    await waitForModel();
+  }
+  if (!bgRemoveModel) return;
+
+  for (let i = 0; i < imgs.length; i++) {
+    const im = imgs[i];
+    if (im.bgProcessed) continue; // 이미 처리된 것 스킵
+
+    // 원본 저장
+    if (!im.original) im.original = im.data;
+
+    // 처리 중 표시
+    renderThumbs();
+    const thumbEl = document.getElementById('thumbGrid').children[i];
+    if (thumbEl) {
+      const overlay = document.createElement('div');
+      overlay.className = 'thumb-processing';
+      overlay.innerHTML = '<div class="mini-spinner"></div>';
+      thumbEl.appendChild(overlay);
+    }
+
+    // 배경 제거 실행
+    const result = await removeBgFromDataUrl(im.original);
+    im.data = result;
+    im.bgProcessed = true;
+
+    renderThumbs();
+  }
+}
+
+// ── 업로드 ────────────────────────────────────
+document.getElementById('fi').onchange = e => handleFiles(e.target.files);
+const dz = document.getElementById('dz');
+dz.onclick = () => document.getElementById('fi').click();
+dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag'); };
+dz.ondragleave = () => dz.classList.remove('drag');
+dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(e.dataTransfer.files); };
+
+// ── [해결책 2] handleFiles 비동기 압축 로직 적용 ────────────────
+async function handleFiles(files) {
+  const filesToProcess = [...files].slice(0, 5 - imgs.length);
+  
+  for (const f of filesToProcess) {
+    if (!f.type.startsWith('image/')) continue;
+    
+    try {
+      // 업로드 단계에서 이미지를 먼저 800px 이하로 압축
+      const compressedDataUrl = await compressImage(f, 800);
+      
+      const imgObj = { 
+        name: f.name, 
+        data: compressedDataUrl, 
+        original: compressedDataUrl, // 압축된 버전을 original로 삼음
+        bgProcessed: false 
+      };
+      
+      imgs.push(imgObj);
+      renderThumbs();
+
+      // 배경 제거 활성화 시 자동 처리
+      if (bgRemoveEnabled) {
+        const idx = imgs.length - 1;
+        const thumbEl = document.getElementById('thumbGrid').children[idx];
+        if (thumbEl) {
+          const overlay = document.createElement('div');
+          overlay.className = 'thumb-processing';
+          overlay.innerHTML = '<div class="mini-spinner"></div>';
+          thumbEl.appendChild(overlay);
+        }
+
+        // 모델 로딩 대기
+        if (bgRemoveModelLoading) {
+          await new Promise(resolve => {
+            const check = setInterval(() => {
+              if (!bgRemoveModelLoading) { clearInterval(check); resolve(); }
+            }, 300);
+          });
+        }
+
+        if (bgRemoveModel) {
+          const result = await removeBgFromDataUrl(imgObj.original);
+          imgObj.data = result;
+          imgObj.bgProcessed = true;
+          renderThumbs();
+        }
+      }
+    } catch (e) {
+      console.error("이미지 압축 중 오류 발생:", e);
+    }
+  }
+}
+
+function renderThumbs() {
+  document.getElementById('thumbGrid').innerHTML = imgs.map((im,i) =>
+    `<div class="thumb" style="position:relative">
+      <img src="${im.data}">
+      ${im.bgProcessed ? '<div class="thumb-done">✓</div>' : ''}
+      <button class="thumb-del" onclick="rmImg(${i})">✕</button>
+    </div>`
+  ).join('');
+  document.getElementById('statusImgs').textContent = `사진 ${imgs.length}장`;
+}
+function rmImg(i) { imgs.splice(i,1); renderThumbs(); }
+
+// ── 칩 ───────────────────────────────────────
+document.querySelectorAll('#chips .chip').forEach(c => {
+  c.onclick = () => {
+    c.classList.toggle('on');
+    const v = c.dataset.v;
+    selF = c.classList.contains('on') ? [...selF,v] : selF.filter(x=>x!==v);
+  };
+});
+
+// ── 플랫폼 상태 ───────────────────────────────
+document.getElementById('pf').onchange = function() {
+  document.getElementById('statusPf').textContent = '플랫폼: ' + this.value;
+};
+
+// ── 탭 ───────────────────────────────────────
+const panelMap = {
+  copy:   'panelCopy',
+  title:  'panelTitle',
+  tags:   'panelTags',
+  link:   'panelLink',
+  export: 'panelExport',
+};
+document.querySelectorAll('.ptab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.ptab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    Object.values(panelMap).forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = 'none';
+    });
+    const target = panelMap[t.dataset.tab];
+    if(target) document.getElementById(target).style.display = 'block';
+  };
+});
+
+// ── 로딩 메시지 ───────────────────────────────
+const loadSteps = [
+  ['이미지 분석 중...','AI가 상품을 파악하고 있습니다'],
+  ['카피라이팅 작성 중...','구매욕구를 자극하는 문구 생성 중'],
+  ['스펙 표 구성 중...','상품 정보를 정리하는 중'],
+  ['상세페이지 렌더링...','이미지로 변환하는 중'],
+  ['마무리 중...','거의 다 됐어요!'],
+];
+
+// ── 1. 상세페이지 생성 ─────────────────────────────────────
+document.getElementById('genBtn').onclick = async function() {
+  const brand = document.getElementById('brand').value.trim();
+  const pname = document.getElementById('pname').value.trim();
+  const price = document.getElementById('price').value.trim();
+  const cat   = document.getElementById('cat').value;
+  const pf    = document.getElementById('pf').value;
+  const memo  = document.getElementById('memo').value.trim();
+  const feats = selF.length ? selF.join(', ') : '없음';
+
+  const btn = this;
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultPreview').classList.remove('show');
+  document.getElementById('errBox').classList.remove('show');
+  document.getElementById('loadingState').classList.add('show');
+
+  let si = 0;
+  const timer = setInterval(() => {
+    const s = loadSteps[si++ % loadSteps.length];
+    document.getElementById('loadMsg').textContent = s[0];
+    document.getElementById('loadSub').textContent = s[1];
+  }, 1600);
+
+  const imgParts = imgs.slice(0,3).map(im => ({
+    inlineData: {
+      mimeType: im.data.split(';')[0].split(':')[1],
+      data: im.data.split(',')[1]
+    }
+  }));
+
+  const sys = `당신은 한국 쇼핑몰 상품 상세페이지 전문 카피라이터입니다. 
+[절대 규칙]
+1. 반드시 순수한 JSON 객체 하나만 출력하세요.
+2. \`\`\`json 이나 \`\`\` 같은 마크다운 기호를 절대 사용하지 마세요.
+3. 인사말, 설명 등 JSON 외의 텍스트는 출력하지 마세요.
+4. 모든 키와 값은 큰따옴표(")로 묶고, 값 안의 줄바꿈은 '\\n'으로 처리하세요.`;
+
+  const usr = `상품 이미지를 분석하여 JSON 생성:
+브랜드:${brand||'이미지에서판단'}, 상품명:${pname||'이미지에서판단'}, 가격:${price||'미입력'}, 카테고리:${cat}, 특징:${feats}, 플랫폼:${pf}, 메모:${memo||'없음'}
+
+{"product_name":"상품명(40자이내)","subtitle":"서브타이틀(20자이내)","main_copy":"메인카피1~2줄","selling_points":["포인트1","포인트2","포인트3"],"description":"상세설명2문단(\\n구분)","specs":[{"key":"브랜드","value":"..."},{"key":"소재","value":"..."},{"key":"사이즈","value":"..."},{"key":"색상","value":"..."},{"key":"원산지","value":"..."},{"key":"세탁방법","value":"..."},{"key":"추천계절","value":"..."}],"keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"],"caution":"주의사항2~3가지"}`;
+
+  try {
+    const resp = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'gemini-2.5-flash',
+        systemInstruction: { parts: [{ text: sys }] },
+        contents: [{ role: 'user', parts: [...imgParts, { text: usr }] }],
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 2500 }
+      })
+    });
+
+    clearInterval(timer);
+
+    // ── [해결책 3] API 413 에러 방어 로직 (JSON 파싱 에러 사전 차단) ────────────────
+    if (!resp.ok) {
+      if (resp.status === 413) {
+        throw new Error("이미지 용량이 너무 커서 서버(Vercel) 제한을 초과했습니다. 새로고침 후 다시 시도해주세요.");
+      }
+      
+      const text = await resp.text();
+      try {
+        const e = JSON.parse(text);
+        throw new Error(e.error?.message || e.message || `서버 에러 (${resp.status})`);
+      } catch (parseErr) {
+        throw new Error(`올바르지 않은 서버 응답(${resp.status}): ${text.slice(0, 40)}...`);
+      }
+    }
+
+    const data = await resp.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // 강력한 파싱 로직
+    let parsed;
+    try {
+      let clean = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch (e) {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ""));
+      } else {
+        throw new Error('JSON 구조를 찾을 수 없습니다.');
+      }
+    }
+
+    resultData = parsed;
+
+    document.getElementById('loadMsg').textContent = '이미지 렌더링 중...';
+    document.getElementById('loadSub').textContent = '상세페이지를 이미지로 변환 중';
+
+    const renderResp = await fetch('/api/render', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        data: parsed,
+        price: price,
+        images: imgs.slice(0,3).map(im=>im.data)
+      })
+    });
+
+    document.getElementById('loadingState').classList.remove('show');
+
+    if (renderResp.ok) {
+      const blob = await renderResp.blob();
+      generatedImgDataUrl = URL.createObjectURL(blob);
+      document.getElementById('previewImg').src = generatedImgDataUrl;
+      document.getElementById('resultPreview').classList.add('show');
+    } else {
+      showTextResult(parsed, price);
+    }
+
+    renderPanel(parsed);
+    document.getElementById('copyAllBtn').style.display = 'flex';
+    document.getElementById('dlBtn').style.display = 'flex';
+    toast('✅ 상세페이지 생성 완료!');
+    updateLinkBtnState();
+
+  } catch(e) {
+    clearInterval(timer);
+    document.getElementById('loadingState').classList.remove('show');
+    document.getElementById('emptyState').style.display = 'flex';
+    const eb = document.getElementById('errBox');
+    eb.innerHTML = `❌ <strong>오류 발생</strong><br><span style="font-size:11px;opacity:0.8">${e.message}</span>`;
+    eb.classList.add('show');
+  }
+
+  btn.disabled = false;
+  btn.classList.remove('loading');
+};
+
+function showTextResult(d, priceInput) {
+  const priceNum = priceInput ? parseInt(priceInput.replace(/[^0-9]/g,''),10) : null;
+  const priceHtml = priceNum ? `<div style="font-size:20px;font-weight:700;color:#e8c97a;margin-top:8px">${priceNum.toLocaleString()}원</div>` : '';
+  const specs = (d.specs||[]).map(s=>`<tr><td style="padding:8px;color:#888;font-size:12px;font-weight:600;border-bottom:1px solid #222">${s.key}</td><td style="padding:8px;color:#ccc;font-size:12px;border-bottom:1px solid #222">${s.value}</td></tr>`).join('');
+  const kws = (d.keywords||[]).map(k=>`<span style="display:inline-block;padding:4px 10px;border:1px solid #333;border-radius:20px;font-size:11px;color:#888;margin:3px">#${k}</span>`).join('');
+
+  document.getElementById('resultPreview').innerHTML = `
+  <div style="background:#13131a;padding:24px;font-family:'Noto Sans KR',sans-serif;color:#f0ede8">
+    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">상품명</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${d.product_name||''}</div>
+    <div style="font-size:13px;color:#9998a8;margin-bottom:4px">${d.subtitle||''}</div>
+    ${priceHtml}
+    <div style="height:1px;background:#222;margin:16px 0"></div>
+    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">메인 카피</div>
+    <div style="font-size:15px;font-weight:600;line-height:1.6">${(d.main_copy||'').replace(/\n/g,'<br>')}</div>
+    <div style="height:1px;background:#222;margin:16px 0"></div>
+    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:10px">판매 포인트</div>
+    ${(d.selling_points||[]).map(p=>`<div style="display:flex;gap:8px;margin-bottom:8px;font-size:13px;color:#ccc"><span style="color:#3ecf8e">✓</span>${p}</div>`).join('')}
+    <div style="height:1px;background:#222;margin:16px 0"></div>
+    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">스펙 표</div>
+    <table style="width:100%;border-collapse:collapse">${specs}</table>
+    <div style="height:1px;background:#222;margin:16px 0"></div>
+    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">검색 키워드</div>
+    <div>${kws}</div>
+  </div>`;
+  document.getElementById('resultPreview').classList.add('show');
+}
+
+function renderPanel(d) {
+  const blocks = [
+    {title:'상품명', body:`${d.product_name}\n${d.subtitle}`},
+    {title:'메인 카피', body:d.main_copy},
+    {title:'판매 포인트', body:(d.selling_points||[]).map((p,i)=>`${i+1}. ${p}`).join('\n')},
+    {title:'상세 설명', body:d.description},
+    {title:'스펙 표', body:(d.specs||[]).map(s=>`${s.key}: ${s.value}`).join('\n')},
+    {title:'검색 키워드', body:(d.keywords||[]).join(', ')},
+    {title:'주의사항', body:d.caution},
+  ];
+  document.getElementById('panelCopy').innerHTML = blocks.map(b=>`
+    <div class="copy-block">
+      <div class="copy-block-hdr">
+        <span class="copy-block-title">${b.title}</span>
+        <button class="copy-btn" onclick="cp(this,'${esc(b.body)}')">📋 복사</button>
+      </div>
+      <div class="copy-block-body">${(b.body||'').replace(/\n/g,'<br>')}</div>
+    </div>`).join('');
+}
+
+function esc(s){ return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
+function cp(btn, text) {
+  navigator.clipboard.writeText(text.replace(/\\n/g,'\n'));
+  btn.textContent='✓ 복사됨'; btn.classList.add('ok');
+  setTimeout(()=>{ btn.textContent='📋 복사'; btn.classList.remove('ok'); },1500);
+}
+function copyAll() {
+  if (!resultData) return;
+  const d = resultData;
+  const t = `[상품명]\n${d.product_name}\n\n[서브타이틀]\n${d.subtitle}\n\n[메인카피]\n${d.main_copy}\n\n[판매포인트]\n${(d.selling_points||[]).join('\n')}\n\n[상세설명]\n${d.description}\n\n[스펙]\n${(d.specs||[]).map(s=>s.key+': '+s.value).join('\n')}\n\n[키워드]\n${(d.keywords||[]).join(', ')}\n\n[주의사항]\n${d.caution}`;
+  navigator.clipboard.writeText(t);
+  toast('📋 전체 내용이 복사되었습니다!');
+}
+function downloadImg() {
+  if (generatedImgDataUrl) {
+    const a = document.createElement('a');
+    a.href = generatedImgDataUrl;
+    a.download = `${(resultData?.product_name||'상세페이지').replace(/\s/g,'_')}.png`;
+    a.click();
+    toast('⬇ 이미지가 저장되었습니다!');
+  } else {
+    toast('⚠ 먼저 상세페이지를 생성해주세요');
+  }
+}
+
+// ── 2. 상품명 최적화 생성 ───────────────────────
+async function runTitleGen() {
+  const brand = document.getElementById('brand').value.trim();
+  const pname = document.getElementById('pname').value.trim();
+  const cat   = document.getElementById('cat').value;
+  const pf    = document.getElementById('pf').value;
+  const feats = selF.length ? selF.join(', ') : '';
+  const memo  = document.getElementById('memo').value.trim();
+
+  if (!resultData && !brand && !pname) {
+    document.getElementById('titleResult').innerHTML =
+      '<div class="tool-empty">먼저 상세페이지를 생성하거나<br>브랜드명/상품명을 입력해주세요.</div>';
+    return;
+  }
+
+  const btn = document.getElementById('titleBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('titleResult').innerHTML =
+    '<div class="tool-empty">AI가 최적화 상품명을 생성 중입니다...</div>';
+
+  const productInfo = resultData
+    ? `상품명: ${resultData.product_name}, 카테고리: ${cat}, 특징: ${(resultData.selling_points||[]).join(', ')}`
+    : `브랜드: ${brand}, 상품명: ${pname}, 카테고리: ${cat}, 특징: ${feats}, 메모: ${memo}`;
+
+  const sys = `당신은 쿠팡/스마트스토어 상품명 최적화 전문가입니다. 반드시 순수 JSON만 출력하세요.`;
+  const usr = `아래 상품 정보를 바탕으로 SEO 최적화된 상품명 5가지를 생성해주세요.
+
+상품 정보: ${productInfo}
+플랫폼: ${pf}
+
+규칙:
+- 각 상품명은 40자 이내
+- 검색량이 많은 키워드를 앞에 배치
+- 브랜드명, 소재, 특징, 사이즈/색상 정보 포함
+- 각각 다른 전략으로 작성 (키워드 중심, 특징 중심, 타깃 중심 등)
+
+{"titles": [
+  {"rank": 1, "strategy": "키워드 중심", "title": "..."},
+  {"rank": 2, "strategy": "특징 강조", "title": "..."},
+  {"rank": 3, "strategy": "타깃 명확화", "title": "..."},
+  {"rank": 4, "strategy": "브랜드 강조", "title": "..."},
+  {"rank": 5, "strategy": "혜택 중심", "title": "..."}
+]}`;
+
+  try {
+    const resp = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'gemini-2.5-flash',
+        systemInstruction: { parts: [{ text: sys }] },
+        contents: [{ role: 'user', parts: [{ text: usr }] }],
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1000 }
+      })
+    });
+    
+    if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
+    
+    const data = await resp.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // 파싱 강화 로직
+    let parsed;
+    try {
+      let clean = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch (e) {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if(match) {
+        parsed = JSON.parse(match[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ""));
+      } else {
+        throw new Error("상품명 파싱 실패");
+      }
+    }
+    
+    const titles = parsed.titles || [];
+
+    document.getElementById('titleResult').innerHTML = titles.map(t => `
+      <div class="title-card">
+        <div class="title-rank">${t.rank}. ${t.strategy}</div>
+        <div class="title-text">${t.title}</div>
+        <button class="title-copy" onclick="cp(this,'${t.title.replace(/'/g,"\'")}')">복사</button>
+      </div>`).join('');
+
+    toast('✨ 최적화 상품명 5개 생성 완료!');
+  } catch(e) {
+    document.getElementById('titleResult').innerHTML =
+      `<div class="tool-empty" style="color:var(--red)">오류: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.classList.remove('loading');
+}
+
+// ── 3. 쿠팡 태그 20개 생성 ──────────────────────
+async function runTagGen() {
+  const brand = document.getElementById('brand').value.trim();
+  const cat   = document.getElementById('cat').value;
+  const feats = selF.length ? selF.join(', ') : '';
+  const memo  = document.getElementById('memo').value.trim();
+
+  if (!resultData && !brand) {
+    document.getElementById('tagsResult').innerHTML =
+      '<div class="tool-empty">먼저 상세페이지를 생성하거나<br>브랜드명을 입력해주세요.</div>';
+    return;
+  }
+
+  const btn = document.getElementById('tagsBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('tagsResult').innerHTML =
+    '<div class="tool-empty">AI가 태그를 생성 중입니다...</div>';
+
+  const productInfo = resultData
+    ? `상품명: ${resultData.product_name}, 카테고리: ${cat}, 키워드: ${(resultData.keywords||[]).join(', ')}, 특징: ${(resultData.selling_points||[]).join(', ')}`
+    : `브랜드: ${brand}, 카테고리: ${cat}, 특징: ${feats}, 메모: ${memo}`;
+
+  const sys = `당신은 쿠팡 검색 최적화 전문가입니다. 반드시 순수 JSON만 출력하세요.`;
+  const usr = `아래 상품에 맞는 쿠팡 검색 태그 20개를 생성해주세요.
+
+상품 정보: ${productInfo}
+
+규칙:
+- 실제 쿠팡 검색량이 높은 키워드 중심
+- 브랜드명, 카테고리, 소재, 특징, 용도, 색상, 타깃 고객 등 다양하게
+- 각 태그는 2~10자 이내
+- 중복 없이 20개
+
+{"tags": ["태그1","태그2","태그3","태그4","태그5","태그6","태그7","태그8","태그9","태그10","태그11","태그12","태그13","태그14","태그15","태그16","태그17","태그18","태그19","태그20"]}`;
+
+  try {
+    const resp = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'gemini-2.5-flash',
+        systemInstruction: { parts: [{ text: sys }] },
+        contents: [{ role: 'user', parts: [{ text: usr }] }],
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1000 }
+      })
+    });
+    
+    if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
+    
+    const data = await resp.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // 파싱 강화 로직
+    let parsed;
+    try {
+      let clean = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch (e) {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if(match) {
+        parsed = JSON.parse(match[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ""));
+      } else {
+        throw new Error("태그 파싱 실패");
+      }
+    }
+    
+    const tags = parsed.tags || [];
+
+    const tagCloud = tags.map(tag =>
+      `<button class="tag-item" onclick="cpTag(this,'${tag.replace(/'/g,"\'")}')">
+        ${tag}
+      </button>`
+    ).join('');
+
+    document.getElementById('tagsResult').innerHTML = `
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;letter-spacing:1px">
+        태그 클릭 시 개별 복사 · 아래 버튼으로 전체 복사
+      </div>
+      <div class="tag-cloud">${tagCloud}</div>
+      <button class="tag-copy-all" id="tagCopyAllBtn" onclick="cpAllTags(${JSON.stringify(tags).replace(/"/g,'&quot;')})">
+        📋 태그 20개 전체 복사
+      </button>`;
+
+    toast('🏷 태그 20개 생성 완료!');
+  } catch(e) {
+    document.getElementById('tagsResult').innerHTML =
+      `<div class="tool-empty" style="color:var(--red)">오류: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.classList.remove('loading');
+}
+
+function cpTag(btn, tag) {
+  navigator.clipboard.writeText(tag);
+  const orig = btn.textContent.trim();
+  btn.textContent = '✓';
+  btn.style.borderColor = 'var(--green)';
+  btn.style.color = 'var(--green)';
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.style.borderColor = '';
+    btn.style.color = '';
+  }, 1200);
+}
+
+function cpAllTags(tags) {
+  navigator.clipboard.writeText(tags.join(', '));
+  const btn = document.getElementById('tagCopyAllBtn');
+  btn.textContent = '✓ 복사됨!';
+  btn.classList.add('ok');
+  setTimeout(() => {
+    btn.textContent = '📋 태그 20개 전체 복사';
+    btn.classList.remove('ok');
+  }, 1500);
+  toast('🏷 태그 20개가 복사되었습니다!');
+}
+
+// ── 4. 공유 링크 시스템 ──────────────────────────
+const shareLinks = JSON.parse(localStorage.getItem('pagecraft-links') || '[]');
+
+function updateLinkBtnState() {
+  const btn = document.getElementById('linkGenBtn');
+  if (btn) btn.disabled = !resultData;
+}
+
+// 단위 자동 변환 로직
+function autoConvertUnit() {
+  const numInput = document.getElementById('linkDuration');
+  const unitSelect = document.getElementById('linkUnit');
+  const badge = document.getElementById('unitAutoBadge');
+  let val = parseInt(numInput.value, 10);
+  if (isNaN(val) || val < 1) { updateDurationHint(); return; }
+
+  let unit = unitSelect.value;
+  let converted = false;
+
+  // 분 → 시간 (≥60)
+  if (unit === 'min' && val >= 60) {
+    val = Math.round(val / 60);
+    unit = 'hour';
+    converted = true;
+  }
+  // 시간 → 일 (≥24)
+  if (unit === 'hour' && val >= 24) {
+    val = Math.round(val / 24);
+    unit = 'day';
+    converted = true;
+  }
+  // 일 → 주 (≥7)
+  if (unit === 'day' && val >= 7) {
+    val = Math.round(val / 7);
+    unit = 'week';
+    converted = true;
+  }
+  // 주 → 달 (≥4)
+  if (unit === 'week' && val >= 4) {
+    val = Math.round(val / 4);
+    unit = 'month';
+    converted = true;
+  }
+  // 달 → 년 (≥12)
+  if (unit === 'month' && val >= 12) {
+    val = Math.round(val / 12);
+    unit = 'year';
+    converted = true;
+  }
+
+  if (converted) {
+    numInput.value = val;
+    unitSelect.value = unit;
+    badge.classList.add('show');
+    setTimeout(() => badge.classList.remove('show'), 1800);
+  }
+
+  updateDurationHint();
+}
+
+function updateDurationHint() {
+  const val = parseInt(document.getElementById('linkDuration').value, 10) || 1;
+  const unit = document.getElementById('linkUnit').value;
+  const unitNames = { min:'분', hour:'시간', day:'일', week:'주', month:'달', year:'년' };
+  document.getElementById('linkDurationHint').textContent =
+    `링크 생성 시점부터 ${val}${unitNames[unit]} 후 만료`;
+}
+
+function calcExpiryMs(val, unit) {
+  const ms = { min:60000, hour:3600000, day:86400000, week:604800000, month:2592000000, year:31536000000 };
+  return val * (ms[unit] || 86400000);
+}
+
+function generateShareLink() {
+  if (!resultData) { toast('⚠ 먼저 상세페이지를 생성해주세요'); return; }
+
+  const maxUses = Math.max(1, parseInt(document.getElementById('linkMaxUses').value, 10) || 10);
+  const duration = Math.max(1, parseInt(document.getElementById('linkDuration').value, 10) || 1);
+  const unit = document.getElementById('linkUnit').value;
+  const expiryMs = calcExpiryMs(duration, unit);
+  const expiresAt = Date.now() + expiryMs;
+
+  // 고유 토큰 생성
+  const token = btoa(Date.now().toString(36) + Math.random().toString(36).slice(2,10))
+    .replace(/[+/=]/g, c => ({'+':'-','/':'_','=':''}[c]));
+
+  // 공유 데이터 패키지
+  const shareData = {
+    token,
+    maxUses,
+    currentUses: 0,
+    expiresAt,
+    createdAt: Date.now(),
+    durationLabel: `${duration}${({min:'분',hour:'시간',day:'일',week:'주',month:'달',year:'년'})[unit]}`,
+    resultData,
+    price: document.getElementById('price').value.trim(),
+    images: imgs.slice(0,3).map(im => im.data)
+  };
+
+  shareLinks.unshift(shareData);
+  localStorage.setItem('pagecraft-links', JSON.stringify(shareLinks));
+
+  const linkUrl = `${location.origin}/share.html#${token}`;
+  renderLinkList();
+  toast('🔗 공유 링크가 생성되었습니다!');
+}
+
+function renderLinkList() {
+  const container = document.getElementById('linkList');
+  // 만료된 링크 정리
+  const now = Date.now();
+  const validLinks = shareLinks.filter(l => l.expiresAt > now);
+
+  if (validLinks.length === 0) {
+    container.innerHTML = '<div class="link-empty">아직 생성된 링크가 없습니다.<br>상세페이지를 먼저 생성해주세요.</div>';
+    return;
+  }
+
+  container.innerHTML = validLinks.map((link, idx) => {
+    const url = `${location.origin}/share.html#${link.token}`;
+    const remaining = link.maxUses - link.currentUses;
+    const expiryDate = new Date(link.expiresAt);
+    const expStr = `${expiryDate.getFullYear()}.${String(expiryDate.getMonth()+1).padStart(2,'0')}.${String(expiryDate.getDate()).padStart(2,'0')} ${String(expiryDate.getHours()).padStart(2,'0')}:${String(expiryDate.getMinutes()).padStart(2,'0')}`;
+
+    return `<div class="link-result-box">
+      <div class="link-result-url">${url}</div>
+      <div class="link-result-meta">
+        <span class="link-meta-tag">👥 잔여 <span class="val">${remaining}/${link.maxUses}회</span></span>
+        <span class="link-meta-tag">⏱ 기간 <span class="val">${link.durationLabel}</span></span>
+        <span class="link-meta-tag">📅 만료 <span class="val">${expStr}</span></span>
+      </div>
+      <div class="link-result-actions">
+        <button class="link-copy-btn" onclick="copyShareLink(this,'${url}')">📋 복사</button>
+        <button class="link-del-btn" onclick="deleteShareLink('${link.token}')">🗑 삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function copyShareLink(btn, url) {
+  navigator.clipboard.writeText(url);
+  btn.textContent = '✓ 복사됨';
+  btn.classList.add('ok');
+  setTimeout(() => { btn.textContent = '📋 복사'; btn.classList.remove('ok'); }, 1500);
+  toast('📋 링크가 복사되었습니다!');
+}
+
+function deleteShareLink(token) {
+  const idx = shareLinks.findIndex(l => l.token === token);
+  if (idx > -1) shareLinks.splice(idx, 1);
+  localStorage.setItem('pagecraft-links', JSON.stringify(shareLinks));
+  renderLinkList();
+  toast('🗑 링크가 삭제되었습니다');
+}
+
+// 초기 렌더링
+renderLinkList();
+updateDurationHint();
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
