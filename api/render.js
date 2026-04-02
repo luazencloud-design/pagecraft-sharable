@@ -332,7 +332,7 @@ export default async function handler(req, res) {
       line(60, y+36, 100, y+36, GOLD, 2);
       text('PRODUCT STORY', 108, y+31, GOLD, 10);
       let dy = y+60;
-      dy = wrapText(para1, 60, dy, W-120, 13, GRAY, 6);
+      dy = wrapText(para1, 60, dy, W-120, 15, GRAY, 6);
       y += descH;
     }
 
