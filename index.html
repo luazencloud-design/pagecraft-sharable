@@ -131,7 +131,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .upload-zone p{font-size:11px;color:var(--text2);line-height:1.5}
 
 /* Thumb Grid */
-.thumb-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;padding:6px 18px 0}
+.thumb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:6px 18px 0}
 .thumb{
   position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;
   border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s;
@@ -522,7 +522,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="upload-zone" id="dz">
       <div class="upload-icon">📷</div>
       <h4>사진 업로드</h4>
-      <p>클릭하거나 드래그<br>JPG · PNG · 최대 5장</p>
+      <p>클릭하거나 드래그<br>JPG · PNG · 최대 10장</p>
       <input type="file" id="fi" accept="image/*" multiple style="display:none">
     </div>
   </div>
@@ -919,7 +919,7 @@ dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(
 
 // ── [해결책 2] handleFiles 비동기 압축 로직 적용 ────────────────
 async function handleFiles(files) {
-  const filesToProcess = [...files].slice(0, 5 - imgs.length);
+  const filesToProcess = [...files].slice(0, 10 - imgs.length);
   
   for (const f of filesToProcess) {
     if (!f.type.startsWith('image/')) continue;
@@ -1127,7 +1127,7 @@ document.getElementById('genBtn').onclick = async function() {
       body: JSON.stringify({
         data: parsed,
         price: price,
-        images: imgs.slice(0,3).map(im=>im.data)
+        images: imgs.slice(0,10).map(im=>im.data)
       })
     });
 
@@ -1165,25 +1165,45 @@ function showTextResult(d, priceInput) {
   const priceHtml = priceNum ? `<div style="font-size:20px;font-weight:700;color:#e8c97a;margin-top:8px">${priceNum.toLocaleString()}원</div>` : '';
   const specs = (d.specs||[]).map(s=>`<tr><td style="padding:8px;color:#888;font-size:12px;font-weight:600;border-bottom:1px solid #222">${s.key}</td><td style="padding:8px;color:#ccc;font-size:12px;border-bottom:1px solid #222">${s.value}</td></tr>`).join('');
   const kws = (d.keywords||[]).map(k=>`<span style="display:inline-block;padding:4px 10px;border:1px solid #333;border-radius:20px;font-size:11px;color:#888;margin:3px">#${k}</span>`).join('');
+  const divImg = (idx) => imgs[idx] ? `<img src="${imgs[idx].data}" style="width:100%;display:block;margin:0">` : '';
+  const paras = (d.description||'').split('\n').filter(Boolean);
+  const para1 = paras.length > 0 ? paras[0] : '';
+  const para2 = paras.length > 1 ? paras.slice(1).join('<br>') : '';
 
   document.getElementById('resultPreview').innerHTML = `
-  <div style="background:#13131a;padding:24px;font-family:'Noto Sans KR',sans-serif;color:#f0ede8">
-    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">상품명</div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${d.product_name||''}</div>
-    <div style="font-size:13px;color:#9998a8;margin-bottom:4px">${d.subtitle||''}</div>
-    ${priceHtml}
-    <div style="height:1px;background:#222;margin:16px 0"></div>
-    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">메인 카피</div>
-    <div style="font-size:15px;font-weight:600;line-height:1.6">${(d.main_copy||'').replace(/\n/g,'<br>')}</div>
-    <div style="height:1px;background:#222;margin:16px 0"></div>
-    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:10px">판매 포인트</div>
-    ${(d.selling_points||[]).map(p=>`<div style="display:flex;gap:8px;margin-bottom:8px;font-size:13px;color:#ccc"><span style="color:#3ecf8e">✓</span>${p}</div>`).join('')}
-    <div style="height:1px;background:#222;margin:16px 0"></div>
-    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">스펙 표</div>
-    <table style="width:100%;border-collapse:collapse">${specs}</table>
-    <div style="height:1px;background:#222;margin:16px 0"></div>
-    <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">검색 키워드</div>
-    <div>${kws}</div>
+  <div style="background:#13131a;font-family:'Noto Sans KR',sans-serif;color:#f0ede8">
+    <div style="padding:24px">
+      <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">상품명</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:4px">${d.product_name||''}</div>
+      <div style="font-size:13px;color:#9998a8;margin-bottom:4px">${d.subtitle||''}</div>
+      ${priceHtml}
+    </div>
+    ${imgs[0] ? `<img src="${imgs[0].data}" style="width:100%;display:block">` : ''}
+    <div style="padding:24px">
+      <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">메인 카피</div>
+      <div style="font-size:15px;font-weight:600;line-height:1.6">${(d.main_copy||'').replace(/\n/g,'<br>')}</div>
+    </div>
+    ${divImg(3)}
+    ${divImg(7)}
+    <div style="padding:24px">
+      <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:10px">판매 포인트</div>
+      ${(d.selling_points||[]).map(p=>`<div style="display:flex;gap:8px;margin-bottom:8px;font-size:13px;color:#ccc"><span style="color:#3ecf8e">✓</span>${p}</div>`).join('')}
+    </div>
+    ${divImg(4)}
+    ${divImg(8)}
+    ${para1 ? `<div style="padding:24px"><div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">상세 설명</div><div style="font-size:13px;color:#ccc;line-height:1.7">${para1}</div></div>` : ''}
+    ${divImg(5)}
+    ${para2 ? `<div style="padding:24px"><div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">상세 설명</div><div style="font-size:13px;color:#ccc;line-height:1.7">${para2}</div></div>` : ''}
+    ${divImg(6)}
+    ${divImg(9)}
+    ${(imgs[1]||imgs[2]) ? `<div style="display:flex;gap:0">${imgs[2]?`<img src="${imgs[2].data}" style="width:50%;display:block">`:'<div style="width:50%"></div>'}${imgs[1]?`<img src="${imgs[1].data}" style="width:50%;display:block">`:'<div style="width:50%"></div>'}</div>` : ''}
+    <div style="padding:24px">
+      <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">스펙 표</div>
+      <table style="width:100%;border-collapse:collapse">${specs}</table>
+      <div style="height:1px;background:#222;margin:16px 0"></div>
+      <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">검색 키워드</div>
+      <div>${kws}</div>
+    </div>
   </div>`;
   document.getElementById('resultPreview').classList.add('show');
 }
