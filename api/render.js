@@ -303,10 +303,10 @@ export default async function handler(req, res) {
     const px = y+60;
     for (let i=0; i<3; i++) {
       const cx = 40 + i*(colW+10);
-      ctx.fillStyle = LGRAY;
+      ctx.fillStyle = BG;
       ctx.font = `900 28px "${fontR}", sans-serif`;
       ctx.fillText(`0${i+1}`, cx, px+42);
-      line(cx, px+48, cx+colW-10, px+48, LINE);
+      line(cx, px+48, cx+colW-10, px+48, BG);
       ctx.fillStyle = BLACK;
       ctx.font = `900 12px "${fontR}", sans-serif`;
       ctx.fillText((pts[i]||'').slice(0,10), cx, px+64);
