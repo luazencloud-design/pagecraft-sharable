@@ -96,6 +96,7 @@ export default async function handler(req, res) {
     const DARK   = '#161616';
     const GOLD   = '#c8a050';
     const YELLOW = '#ffc800';
+    const SISAL  = '#D3CDBA';
 
     // 폰트 패밀리 (등록된 폰트 사용, 없으면 fallback)
     const fontFamily = fontsLoaded ? 'NotoSansKR' : 'sans-serif';
@@ -294,9 +295,9 @@ export default async function handler(req, res) {
     // ══════════════════════════════════════════════
     // 6. 판매 포인트
     // ══════════════════════════════════════════════
-    fillRect(0, y, W, ptH, BG);
-    line(60, y+28, 100, y+28, GOLD, 2);
-    text('SELLING POINTS', 108, y+23, GOLD, 10);
+    fillRect(0, y, W, ptH, SISAL);
+    line(60, y+36, 100, y+36, GOLD, 2);
+    text('SELLING POINTS', 108, y+31, GOLD, 10);
     const pts = d.selling_points || [];
     const colW = (W-80)/3;
     const px = y+60;
@@ -350,7 +351,7 @@ export default async function handler(req, res) {
       let dy = y+60;
       const p2Lines = para2.split('\n').filter(Boolean);
       for (const pLine of p2Lines) {
-        dy = wrapText(pLine, 60, dy, W-120, 13, GRAY, 6);
+        dy = wrapText(pLine, 60, dy, W-120, 15, GRAY, 6);
         dy += 14;
       }
       y += descH;
@@ -388,7 +389,7 @@ export default async function handler(req, res) {
     // ══════════════════════════════════════════════
     // 15. 스펙 표
     // ══════════════════════════════════════════════
-    fillRect(0, y, W, specH, BG);
+    fillRect(0, y, W, specH, SISAL);
     line(60, y+36, 100, y+36, GOLD, 2);
     text('SPECIFICATION', 108, y+31, GOLD, 10);
     const specs = d.specs || [];
@@ -429,7 +430,7 @@ export default async function handler(req, res) {
     // ══════════════════════════════════════════════
     // 17. 주의사항
     // ══════════════════════════════════════════════
-    fillRect(0, y, W, cautH, BG);
+    fillRect(0, y, W, cautH, SISAL);
     line(60, y+36, 100, y+36, GOLD, 2);
     text('CAUTION', 108, y+31, GOLD, 10);
     const cauts = (d.caution||'').split(/[.。]/).filter(c=>c.trim().length>2).slice(0,3);
