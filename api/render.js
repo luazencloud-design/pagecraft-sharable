@@ -96,7 +96,7 @@ export default async function handler(req, res) {
     const DARK   = '#161616';
     const GOLD   = '#c8a050';
     const YELLOW = '#ffc800';
-    const SISAL  = '#D3CDBA';
+    const SISAL  = '#E5E1D6';
 
     // 폰트 패밀리 (등록된 폰트 사용, 없으면 fallback)
     const fontFamily = fontsLoaded ? 'NotoSansKR' : 'sans-serif';
