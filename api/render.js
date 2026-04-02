@@ -100,24 +100,26 @@ export default async function handler(req, res) {
     // 폰트 패밀리 (등록된 폰트 사용, 없으면 fallback)
     const fontFamily = fontsLoaded ? 'NotoSansKR' : 'sans-serif';
     const fontR = fontFamily;
-    const fontB = fontFamily; // bold는 weight로 처리
 
     // 섹션 높이
     const heroH   = 110;
     const copyH   = 190;
     const ptH     = 270;
-    const descH   = 260;
+    const descH   = 180;  // 문단 하나 높이 (2문단 분리)
     const specH   = 320;
     const kwH     = 120;
     const cautH   = 200;
     const footH   = 90;
 
-    // 사진 높이 계산 (crop 모드: 고정 높이 사용)
-    const MAIN_PHOTO_H = 800;   // 메인 사진 고정 높이
-    const COLOR_PHOTO_H = 500;  // 컬러 사진 고정 높이
+    // 사진 높이 계산
+    const MAIN_PHOTO_H = 800;     // 메인 사진 (이미지 1)
+    const DIVIDER_PHOTO_H = 600;  // 구분 이미지 (이미지 4~10)
+    const COLOR_PHOTO_H = 500;    // 컬러 사진 (이미지 2,3)
 
+    // 이미지 로드 (최대 10장)
     let loadedImgs = [];
-    for (let i = 0; i < Math.min(images.length, 3); i++) {
+    const maxImgs = Math.min(images.length, 10);
+    for (let i = 0; i < maxImgs; i++) {
       try {
         const buf = Buffer.from(images[i].split(',')[1], 'base64');
         const img = await loadImage(buf);
@@ -127,10 +129,56 @@ export default async function handler(req, res) {
       }
     }
 
-    const mainH   = loadedImgs[0] ? MAIN_PHOTO_H : 0;
-    const hasColorImgs = loadedImgs.slice(1).some(Boolean);
+    // 편의 함수: 해당 인덱스 이미지가 존재하는지
+    const hasImg = (idx) => idx < loadedImgs.length && loadedImgs[idx] !== null;
+
+    // 메인/컬러 높이 계산
+    const mainH   = hasImg(0) ? MAIN_PHOTO_H : 0;
+    const hasColorImgs = hasImg(1) || hasImg(2);
     const colorH  = hasColorImgs ? COLOR_PHOTO_H : 0;
     const lbl2H   = hasColorImgs ? 40 : 0;
+
+    // 구분 이미지 높이 계산 (각각 존재하면 추가)
+    const divH = (idx) => hasImg(idx) ? DIVIDER_PHOTO_H : 0;
+
+    // 상세 설명 문단 분리
+    const paras = (d.description||'').split('\n').filter(Boolean);
+    const para1 = paras.length > 0 ? paras[0] : '';
+    const para2 = paras.length > 1 ? paras.slice(1).join('\n') : '';
+    const descH1 = para1 ? descH : 0;
+    const descH2 = para2 ? descH : 0;
+
+    // ── 전체 높이 계산 ──
+    // 레이아웃 순서:
+    // 1. 헤더 (heroH)
+    // 2. 이미지1 - 메인 (mainH)
+    // 3. 메인 카피 (copyH)
+    // 4. 이미지4 (divH(3))
+    // 5. 이미지8 (divH(7))
+    // 6. 판매 포인트 (ptH)
+    // 7. 이미지5 (divH(4))
+    // 8. 이미지9 (divH(8))
+    // 9. 상세 설명 1문단 (descH1)
+    // 10. 이미지6 (divH(5))
+    // 11. 상세 설명 2문단 (descH2)
+    // 12. 이미지7 (divH(6))
+    // 13. 이미지10 (divH(9))
+    // 14. 컬러 선택 (lbl2H + colorH)
+    // 15. 스펙 표 (specH)
+    // 16. 키워드 (kwH)
+    // 17. 주의사항 (cautH)
+    // 18. 푸터 (footH)
+
+    const total = heroH + mainH + copyH
+      + divH(3) + divH(7) + ptH
+      + divH(4) + divH(8)
+      + descH1 + divH(5) + descH2
+      + divH(6) + divH(9)
+      + (hasColorImgs ? lbl2H + colorH : 0)
+      + specH + kwH + cautH + footH;
+
+    const canvas = createCanvas(W, total);
+    const ctx = canvas.getContext('2d');
 
     // ── center-crop 그리기 (object-fit: cover 방식) ──
     function drawImageCover(imgObj, dx, dy, dw, dh) {
@@ -139,13 +187,11 @@ export default async function handler(req, res) {
       const dstRatio = dw / dh;
       let sx, sy, sWidth, sHeight;
       if (srcRatio > dstRatio) {
-        // 원본이 더 넓음 → 좌우를 자름
         sHeight = sh;
         sWidth = sh * dstRatio;
         sx = (sw - sWidth) / 2;
         sy = 0;
       } else {
-        // 원본이 더 높음 → 상하를 자름
         sWidth = sw;
         sHeight = sw / dstRatio;
         sx = 0;
@@ -153,13 +199,6 @@ export default async function handler(req, res) {
       }
       ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
     }
-
-    const total = heroH + mainH + copyH + ptH + descH +
-                  (lbl2H > 0 ? lbl2H + colorH : 0) +
-                  specH + kwH + cautH + footH;
-
-    const canvas = createCanvas(W, total);
-    const ctx = canvas.getContext('2d');
 
     function fillRect(x, y, w, h, color) {
       ctx.fillStyle = color;
@@ -198,9 +237,19 @@ export default async function handler(req, res) {
       return cy;
     }
 
+    // ── 구분 이미지 그리기 공통 함수 (메인 이미지와 동일 양식) ──
+    function drawDividerImage(imgIdx, yPos) {
+      if (!hasImg(imgIdx)) return yPos;
+      fillRect(0, yPos, W, DIVIDER_PHOTO_H, BG);
+      drawImageCover(loadedImgs[imgIdx], 0, yPos, W, DIVIDER_PHOTO_H);
+      return yPos + DIVIDER_PHOTO_H;
+    }
+
     let y = 0;
 
-    // ── 1. 헤더 ──
+    // ══════════════════════════════════════════════
+    // 1. 헤더
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, heroH, DARK);
     const bt = 'NATIONAL GEOGRAPHIC STYLE  ·  FASHION & ACCESSORY';
     centerText(bt, y+24, YELLOW, 10);
@@ -210,15 +259,18 @@ export default async function handler(req, res) {
     centerText(su, y+86, LGRAY, 13);
     y += heroH;
 
-    // ── 2. 메인 사진 ──
-    if (loadedImgs[0] && mainH > 0) {
-      // 흰색 배경을 먼저 칠하고 이미지를 그림 (투명 배경 대응)
+    // ══════════════════════════════════════════════
+    // 2. 이미지 1 — 메인 사진
+    // ══════════════════════════════════════════════
+    if (hasImg(0) && mainH > 0) {
       fillRect(0, y, W, mainH, BG);
       drawImageCover(loadedImgs[0], 0, y, W, mainH);
       y += mainH;
     }
 
-    // ── 3. 메인 카피 ──
+    // ══════════════════════════════════════════════
+    // 3. 메인 카피
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, copyH, IVORY);
     line(60, y+36, 100, y+36, GOLD, 2);
     text('MAIN COPY', 108, y+31, GOLD, 10);
@@ -229,7 +281,19 @@ export default async function handler(req, res) {
     }
     y += copyH;
 
-    // ── 4. 판매 포인트 ──
+    // ══════════════════════════════════════════════
+    // 4. 이미지 4 — 메인 카피 ↔ 판매 포인트 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(3, y);
+
+    // ══════════════════════════════════════════════
+    // 5. 이미지 8 — 이미지4 ↔ 판매 포인트 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(7, y);
+
+    // ══════════════════════════════════════════════
+    // 6. 판매 포인트
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, ptH, BG);
     line(60, y+28, 100, y+28, GOLD, 2);
     text('SELLING POINTS', 108, y+23, GOLD, 10);
@@ -249,28 +313,70 @@ export default async function handler(req, res) {
     }
     y += ptH;
 
-    // ── 5. 상세 설명 ──
-    fillRect(0, y, W, descH, IVORY);
-    line(60, y+36, 100, y+36, GOLD, 2);
-    text('PRODUCT STORY', 108, y+31, GOLD, 10);
-    let dy = y+60;
-    const paras = (d.description||'').split('\n').filter(Boolean);
-    for (const para of paras) {
-      dy = wrapText(para, 60, dy, W-120, 13, GRAY, 6);
-      dy += 14;
-    }
-    y += descH;
+    // ══════════════════════════════════════════════
+    // 7. 이미지 5 — 판매 포인트 ↔ 상세 설명 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(4, y);
 
-    // ── 6. 컬러별 사진 나란히 ──
-    if (lbl2H > 0) {
+    // ══════════════════════════════════════════════
+    // 8. 이미지 9 — 이미지5 ↔ 상세 설명 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(8, y);
+
+    // ══════════════════════════════════════════════
+    // 9. 상세 설명 — 1문단
+    // ══════════════════════════════════════════════
+    if (para1) {
+      fillRect(0, y, W, descH, IVORY);
+      line(60, y+36, 100, y+36, GOLD, 2);
+      text('PRODUCT STORY', 108, y+31, GOLD, 10);
+      let dy = y+60;
+      dy = wrapText(para1, 60, dy, W-120, 13, GRAY, 6);
+      y += descH;
+    }
+
+    // ══════════════════════════════════════════════
+    // 10. 이미지 6 — 상세 설명 1문단 ↔ 2문단 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(5, y);
+
+    // ══════════════════════════════════════════════
+    // 11. 상세 설명 — 2문단
+    // ══════════════════════════════════════════════
+    if (para2) {
+      fillRect(0, y, W, descH, IVORY);
+      line(60, y+36, 100, y+36, GOLD, 2);
+      text('PRODUCT STORY', 108, y+31, GOLD, 10);
+      let dy = y+60;
+      const p2Lines = para2.split('\n').filter(Boolean);
+      for (const pLine of p2Lines) {
+        dy = wrapText(pLine, 60, dy, W-120, 13, GRAY, 6);
+        dy += 14;
+      }
+      y += descH;
+    }
+
+    // ══════════════════════════════════════════════
+    // 12. 이미지 7 — 상세 설명 2문단 ↔ 컬러 선택 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(6, y);
+
+    // ══════════════════════════════════════════════
+    // 13. 이미지 10 — 이미지7 ↔ 컬러 선택 사이
+    // ══════════════════════════════════════════════
+    y = drawDividerImage(9, y);
+
+    // ══════════════════════════════════════════════
+    // 14. 컬러 선택 (이미지 2+3 나란히)
+    // ══════════════════════════════════════════════
+    if (hasColorImgs) {
       fillRect(0, y, W, lbl2H, DARK);
       centerText('COLOR VARIATION  ·  컬러 선택', y+24, YELLOW, 10);
       y += lbl2H;
 
-      // 흰색 배경을 먼저 칠함 (투명 PNG 대응)
       fillRect(0, y, W, colorH, BG);
-      if (loadedImgs[2]) drawImageCover(loadedImgs[2], 0,      y, W/2, colorH);
-      if (loadedImgs[1]) drawImageCover(loadedImgs[1], W/2,    y, W/2, colorH);
+      if (hasImg(2)) drawImageCover(loadedImgs[2], 0,   y, W/2, colorH);
+      if (hasImg(1)) drawImageCover(loadedImgs[1], W/2, y, W/2, colorH);
       // 라벨
       fillRect(0,    y+colorH-30, W/2, 30, 'rgba(20,20,20,0.85)');
       fillRect(W/2,  y+colorH-30, W/2, 30, 'rgba(240,240,240,0.85)');
@@ -279,7 +385,9 @@ export default async function handler(req, res) {
       y += colorH;
     }
 
-    // ── 7. 스펙 표 ──
+    // ══════════════════════════════════════════════
+    // 15. 스펙 표
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, specH, BG);
     line(60, y+36, 100, y+36, GOLD, 2);
     text('SPECIFICATION', 108, y+31, GOLD, 10);
@@ -297,7 +405,9 @@ export default async function handler(req, res) {
     }
     y += specH;
 
-    // ── 8. 키워드 ──
+    // ══════════════════════════════════════════════
+    // 16. 키워드
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, kwH, IVORY);
     line(60, y+28, 100, y+28, GOLD, 2);
     text('SEARCH KEYWORDS', 108, y+23, GOLD, 10);
@@ -316,7 +426,9 @@ export default async function handler(req, res) {
     }
     y += kwH;
 
-    // ── 9. 주의사항 ──
+    // ══════════════════════════════════════════════
+    // 17. 주의사항
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, cautH, BG);
     line(60, y+36, 100, y+36, GOLD, 2);
     text('CAUTION', 108, y+31, GOLD, 10);
@@ -330,7 +442,9 @@ export default async function handler(req, res) {
     }
     y += cautH;
 
-    // ── 10. 푸터 ──
+    // ══════════════════════════════════════════════
+    // 18. 푸터
+    // ══════════════════════════════════════════════
     fillRect(0, y, W, footH, DARK);
     const priceNum = price ? parseInt(price.replace(/[^0-9]/g,''),10) : 0;
     if (priceNum) {
