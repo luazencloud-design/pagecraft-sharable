@@ -167,12 +167,12 @@ export default async function handler(req, res) {
     }
     function text(str, x, y, color, size, bold=false) {
       ctx.fillStyle = color;
-      ctx.font = `${bold ? '700' : '400'} ${size}px "${fontR}", sans-serif`;
+      ctx.font = `${bold ? '900' : '700'} ${size}px "${fontR}", sans-serif`;
       ctx.fillText(str, x, y);
     }
     function centerText(str, y, color, size, bold=false) {
       ctx.fillStyle = color;
-      ctx.font = `${bold ? '700' : '400'} ${size}px "${fontR}", sans-serif`;
+      ctx.font = `${bold ? '900' : '700'} ${size}px "${fontR}", sans-serif`;
       const w2 = ctx.measureText(str).width;
       ctx.fillText(str, (W - w2) / 2, y);
     }
@@ -183,7 +183,7 @@ export default async function handler(req, res) {
     }
     function wrapText(str, x, y, maxW, size, color, lhAdd=8, bold=false) {
       ctx.fillStyle = color;
-      ctx.font = `${bold ? '700' : '400'} ${size}px "${fontR}", sans-serif`;
+      ctx.font = `${bold ? '900' : '700'} ${size}px "${fontR}", sans-serif`;
       const lh = size + lhAdd;
       let cur = '';
       let cy = y;
@@ -243,9 +243,9 @@ export default async function handler(req, res) {
       ctx.fillText(`0${i+1}`, cx, px+42);
       line(cx, px+48, cx+colW-10, px+48, LINE);
       ctx.fillStyle = BLACK;
-      ctx.font = `700 12px "${fontR}", sans-serif`;
+      ctx.font = `900 12px "${fontR}", sans-serif`;
       ctx.fillText((pts[i]||'').slice(0,10), cx, px+64);
-      if (pts[i]) wrapText(pts[i], cx, px+82, colW-10, 11, DARK, 6);
+      if (pts[i]) wrapText(pts[i], cx, px+82, colW-10, 11, GRAY, 6);
     }
     y += ptH;
 
@@ -256,7 +256,7 @@ export default async function handler(req, res) {
     let dy = y+60;
     const paras = (d.description||'').split('\n').filter(Boolean);
     for (const para of paras) {
-      dy = wrapText(para, 60, dy, W-120, 13, DARK, 6);
+      dy = wrapText(para, 60, dy, W-120, 13, GRAY, 6);
       dy += 14;
     }
     y += descH;
@@ -290,8 +290,8 @@ export default async function handler(req, res) {
       ctx.fillStyle = BLACK;
       ctx.font = `900 12px "${fontR}", sans-serif`;
       ctx.fillText(s.key, 70, sy+20);
-      ctx.fillStyle = DARK;
-      ctx.font = `400 12px "${fontR}", sans-serif`;
+      ctx.fillStyle = GRAY;
+      ctx.font = `700 12px "${fontR}", sans-serif`;
       ctx.fillText(s.value, 220, sy+20);
       sy += 31;
     }
@@ -304,7 +304,7 @@ export default async function handler(req, res) {
     const kws = d.keywords || [];
     let kx = 60, ky = y+50;
     for (const kw of kws) {
-      ctx.font = `400 11px "${fontR}", sans-serif`;
+      ctx.font = `700 11px "${fontR}", sans-serif`;
       const kw2 = '#'+kw;
       const kw_w = ctx.measureText(kw2).width + 18;
       if (kx + kw_w > W-60) { kx=60; ky+=32; }
@@ -323,9 +323,9 @@ export default async function handler(req, res) {
     const cauts = (d.caution||'').split(/[.。]/).filter(c=>c.trim().length>2).slice(0,3);
     let ccy = y+58;
     for (const c of cauts) {
-      ctx.fillStyle = DARK; ctx.beginPath();
+      ctx.fillStyle = GRAY; ctx.beginPath();
       ctx.arc(64, ccy+7, 4, 0, Math.PI*2); ctx.fill();
-      ccy = wrapText(c.trim()+'.', 78, ccy, W-138, 12, DARK, 6);
+      ccy = wrapText(c.trim()+'.', 78, ccy, W-138, 12, GRAY, 6);
       ccy += 10;
     }
     y += cautH;
