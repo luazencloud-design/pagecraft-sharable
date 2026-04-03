@@ -77,14 +77,24 @@ export default async function handler(req, res) {
       await store.set(graceKey, '1', { ex: 300 });
     }
 
-    // ── 세션 토큰 발급 (1시간 유효) ──
+    // ── 세션 TTL 계산: 링크 잔여 시간에 맞춤 (최소 1시간, 최대 7일) ──
+    const MAX_SESSION_TTL = 7 * 24 * 3600;  // 7일
+    const MIN_SESSION_TTL = 3600;            // 1시간
+    let sessionTtl = MAX_SESSION_TTL;
+
+    if (link.expiresAt) {
+      const remainingSec = Math.floor((new Date(link.expiresAt).getTime() - Date.now()) / 1000);
+      sessionTtl = Math.max(MIN_SESSION_TTL, Math.min(remainingSec, MAX_SESSION_TTL));
+    }
+
+    // ── 세션 토큰 발급 ──
     const sessionToken = crypto.randomBytes(24).toString('hex');
     const sessionData = {
       linkToken: token,
       title: link.title,
       createdAt: new Date().toISOString(),
     };
-    await store.set(`session:${sessionToken}`, JSON.stringify(sessionData), { ex: 3600 });
+    await store.set(`session:${sessionToken}`, JSON.stringify(sessionData), { ex: sessionTtl });
 
     return res.status(200).json({
       success: true,

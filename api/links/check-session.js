@@ -59,7 +59,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // ⑤ 유효 → 남은 시간 정보 포함 응답 (linkToken은 노출하지 않음)
+    // ⑤ 세션 자동 갱신: 링크가 유효한 동안 세션 TTL을 연장
+    const MAX_SESSION_TTL = 7 * 24 * 3600;  // 7일
+    const MIN_SESSION_TTL = 3600;            // 1시간
+    let renewTtl = MAX_SESSION_TTL;
+
+    if (link.expiresAt) {
+      const remainingSec = Math.floor((new Date(link.expiresAt).getTime() - Date.now()) / 1000);
+      renewTtl = Math.max(MIN_SESSION_TTL, Math.min(remainingSec, MAX_SESSION_TTL));
+    }
+
+    // 기존 세션 데이터를 새 TTL로 덮어쓰기 (갱신)
+    await store.set(`session:${sessionToken}`, JSON.stringify(session), { ex: renewTtl });
+
+    // ⑥ 유효 → 남은 시간 정보 포함 응답 (linkToken은 노출하지 않음)
     const now = Date.now();
     let remainingMs = null;
     if (link.expiresAt) {
