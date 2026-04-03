@@ -1,5 +1,26 @@
 import { getStore } from './_store.js';
 
+// 특정 링크에 연결된 모든 세션을 즉시 삭제
+async function revokeSessionsForLink(store, linkToken) {
+  try {
+    const sessionKeys = await store.keys('session:*');
+    let revoked = 0;
+    for (const key of sessionKeys) {
+      const raw = await store.get(key);
+      if (!raw) continue;
+      const session = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (session.linkToken === linkToken) {
+        await store.del(key);
+        revoked++;
+      }
+    }
+    return revoked;
+  } catch (e) {
+    console.warn('세션 정리 중 오류:', e.message);
+    return 0;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
@@ -25,18 +46,23 @@ export default async function handler(req, res) {
     const raw = await store.get(`link:${token}`);
     if (!raw) return res.status(404).json({ error: '링크를 찾을 수 없습니다.' });
 
-    // 삭제
+    // 삭제 → 관련 세션도 즉시 삭제
     if (action === 'delete' || req.method === 'DELETE') {
+      const revoked = await revokeSessionsForLink(store, token);
       await store.del(`link:${token}`);
-      return res.status(200).json({ success: true, message: '링크가 삭제되었습니다.' });
+      return res.status(200).json({ success: true, message: '링크가 삭제되었습니다.', revokedSessions: revoked });
     }
 
-    // 토글 (활성/비활성)
+    // 토글 (활성/비활성) → 비활성화 시 세션도 즉시 삭제
     if (action === 'toggle') {
       const link = typeof raw === 'string' ? JSON.parse(raw) : raw;
       link.active = !link.active;
       await store.set(`link:${token}`, JSON.stringify(link));
-      return res.status(200).json({ success: true, active: link.active });
+      let revoked = 0;
+      if (!link.active) {
+        revoked = await revokeSessionsForLink(store, token);
+      }
+      return res.status(200).json({ success: true, active: link.active, revokedSessions: revoked });
     }
 
     // 수정

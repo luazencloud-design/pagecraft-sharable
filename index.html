@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<link rel="icon" type="image/x-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAgCAYAAACcuBHKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAPqSURBVFhH7ZRfTFtVHMe/59xSeqGF1kKBQpstNIOoiMAQkPgA+xNnAotZlsyHmbhpMPFhkmxqwhKc+uJYVPbiWDD4MiMmIomZZi7ZXJYxkqUsxkR8mGN0wOhoaW/b297Se8/xZRfLdYExJT7I5+n8vr/vufnmd3J/wCab/AcwCS1Mhtuo61CjsAEQAIehosHY0NnwEExGGYAWAM3G3obDAt0ik3CIxXCNSdCYhAUmYZBJaDF6/41JkPhYz/74xMmdxgYIiKE2r6gfsNK0TjgfyFEuXj5sdrr6eI41SNWcTlp/4rdsD5PhhoqLAEZpIXqyezqPPQke+dQev+TvMztdfQTEymdvlrN0pN7oo/m4B+A6gHFjT+exQvh8/bnxicn3rXbxCAGxqoGbIVUo7KblwrdGL+cgAL6ACX5dY4FukfOBHL1e93P4fP25EYwff6lWOdR70OH28lsharK9beo4f87o1eEclBCwv+qBHEST+bDnyYR0ZVa616Cioll0+l758KnWY6xo26v84L6XZ1M/HXjT6HsUmIRjTEIH1vUcjobCKIo/Ki2p6EnIMZJIRH8c/jnaLu7++ozRqvP0geslpz4Ze/3Zdyafz9ZZoFsEQQ2A6mx9VfJd7SXeZ94Y1SdgcXf+YHG0eo0+I2cGJz4OhZN8bHzu9/p9N5raa78vB3opALA4avRVvuYkLI5Wr7O0csBms3cGF4JEjkeGBTXxmhK5FtA9nIMyCR08COsDiTRWjzhtlsKGqck0Fqa4b4fd8p2n2D3SXru9DACoDb/SfMxhrRBmZ1uVy/Pk6ewAVJOPyPcvBbN9PIYmELzHLWgDgN3PXd5bs2XrhT9uqM1DpwL8wnCIymFWyjnfbsq1NmbfxWoh8tw76so9lV/ZbPbO6bu3NTkRHkwpc13GAAAIAarAsQ1ANeegBaLFoWa0uvlpJS8Rz/BEPMMj0RSPJmOEJrHT+Fc+NESBZ8+uEtfWQQahfvrubU1TlS9TqfmjiPgloxcAR8HAOQAnCcEQIWDz9+77Q0kpMhMMI5qMkWgyRhZliabVDGG5SlNj9cgT2R/4W4gCz55dxS7PWQahPrwYUsGWTq8SAABASFeGKPgcNiwCQJpqs+rS0lRazZDUUkpZigu3wmnTqKQK76qL6lssfyG24v7yaf83QsH4UHuxy3NW1cgWPYAdC8dnZsZT2ZfWppc2171w1GKiZWZCrkSjsV802/yM3//wxbQcwuJo9ZqsRVctYqFXUeR/EECnlwInlrfkagj6QRVdEIS8SqZlipgmf1YmvvjBnTuDykr7erjCjcojUVHRLJqdbVU+X3+usbfJJpv8b/kTiDOlAdybDUEAAAAASUVORK5CYII=">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PageCraft Pro v2.0 — 상품 상세페이지 · 상품명 · 태그 생성기</title>
@@ -486,6 +485,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   text-decoration:none;opacity:0.6;transition:opacity 0.2s;
 }
 .lock-card a.lock-admin:hover{opacity:1}
+@keyframes pulse-warn{0%,100%{opacity:1}50%{opacity:0.5}}
 </style>
 </head>
 <body>
@@ -704,13 +704,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div class="toast" id="toast"></div>
 
 <script>
-// ── 세션 검증 ─────────────────────────────────
+// ── 세션 검증 + 실시간 만료 감시 ─────────────────────────────────
 let sessionValid = false;
+let _sessionToken = null;
+let _sessionPollTimer = null;
+let _sessionExpiryTimer = null;
+let _countdownTimer = null;
 
-(async function checkSession() {
+const SESSION_POLL_INTERVAL = 15000; // 15초마다 서버 검증
+
+(async function initSession() {
   const params = new URLSearchParams(window.location.search);
   const s = params.get('s');
   if (!s) return; // 세션 없으면 잠금 유지
+
+  _sessionToken = s;
 
   try {
     const res = await fetch('/api/links/check-session', {
@@ -724,11 +732,143 @@ let sessionValid = false;
       document.getElementById('lockOverlay').classList.add('hidden');
       // URL에서 세션 파라미터 숨기기 (깔끔하게)
       history.replaceState(null, '', '/');
+
+      // ▶ 만료 시간이 있으면 정밀 타이머 설정
+      if (data.expiresAt) {
+        _setupExpiryTimer(data.expiresAt);
+        _setupCountdown(data.expiresAt);
+      }
+
+      // ▶ 주기적 서버 검증 시작 (관리자가 수동 비활성화/삭제 시 대응)
+      _startSessionPolling();
     }
   } catch (e) {
     console.error('세션 확인 실패:', e);
   }
 })();
+
+// 만료 시각에 정확히 맞춰 권한 차단
+function _setupExpiryTimer(expiresAt) {
+  if (_sessionExpiryTimer) clearTimeout(_sessionExpiryTimer);
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  if (remaining <= 0) {
+    _revokeSession('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
+    return;
+  }
+  _sessionExpiryTimer = setTimeout(() => {
+    _revokeSession('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
+  }, remaining);
+}
+
+// 남은 시간 카운트다운 표시
+function _setupCountdown(expiresAt) {
+  // 카운트다운 배지가 없으면 생성
+  let badge = document.getElementById('sessionCountdown');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'sessionCountdown';
+    badge.style.cssText = `
+      position:fixed;bottom:16px;right:16px;z-index:9998;
+      font-family:var(--mono);font-size:12px;
+      background:var(--surface);border:1px solid var(--border2);border-radius:10px;
+      padding:8px 14px;color:var(--text2);
+      backdrop-filter:blur(8px);transition:all 0.3s;
+      box-shadow:0 4px 16px rgba(0,0,0,0.3);
+    `;
+    document.body.appendChild(badge);
+  }
+
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  _countdownTimer = setInterval(() => {
+    const left = new Date(expiresAt).getTime() - Date.now();
+    if (left <= 0) {
+      badge.innerHTML = '⏰ <span style="color:var(--red)">만료됨</span>';
+      clearInterval(_countdownTimer);
+      return;
+    }
+    const h = Math.floor(left / 3600000);
+    const m = Math.floor((left % 3600000) / 60000);
+    const s = Math.floor((left % 60000) / 1000);
+    const timeStr = h > 0 ? `${h}시간 ${m}분 ${s}초` : m > 0 ? `${m}분 ${s}초` : `${s}초`;
+    badge.innerHTML = `⏱ 남은 시간: <span style="color:${left < 60000 ? 'var(--red)' : 'var(--accent)'};font-weight:500">${timeStr}</span>`;
+
+    // 1분 이하일 때 깜빡임 효과
+    if (left < 60000) {
+      badge.style.borderColor = 'rgba(248,113,113,0.5)';
+      badge.style.animation = 'pulse-warn 1s infinite';
+    }
+  }, 1000);
+}
+
+// 주기적 서버 검증 (관리자 수동 비활성화/삭제 감지)
+function _startSessionPolling() {
+  if (_sessionPollTimer) clearInterval(_sessionPollTimer);
+  _sessionPollTimer = setInterval(async () => {
+    if (!_sessionToken || !sessionValid) {
+      clearInterval(_sessionPollTimer);
+      return;
+    }
+    try {
+      const res = await fetch('/api/links/check-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionToken: _sessionToken })
+      });
+      const data = await res.json();
+
+      if (!data.valid) {
+        const codeMsg = {
+          'LINK_EXPIRED': '링크의 유효 기간이 만료되었습니다.',
+          'LINK_DELETED': '링크가 삭제되었습니다.',
+          'LINK_INACTIVE': '관리자가 링크를 비활성화했습니다.',
+          'SESSION_EXPIRED': '세션이 만료되었습니다.',
+        };
+        _revokeSession(data.code || 'UNKNOWN', codeMsg[data.code] || data.error || '세션이 종료되었습니다.');
+      } else if (data.expiresAt) {
+        // 서버에서 받은 최신 만료시간으로 타이머 갱신
+        _setupExpiryTimer(data.expiresAt);
+      }
+    } catch (e) {
+      console.warn('세션 폴링 실패 (네트워크 오류):', e);
+    }
+  }, SESSION_POLL_INTERVAL);
+}
+
+// 즉시 권한 차단 실행
+function _revokeSession(code, message) {
+  if (!sessionValid) return; // 이미 차단됨
+  sessionValid = false;
+  _sessionToken = null;
+
+  // 모든 타이머 정리
+  if (_sessionPollTimer) clearInterval(_sessionPollTimer);
+  if (_sessionExpiryTimer) clearTimeout(_sessionExpiryTimer);
+  if (_countdownTimer) clearInterval(_countdownTimer);
+
+  // 카운트다운 배지 제거
+  const badge = document.getElementById('sessionCountdown');
+  if (badge) badge.remove();
+
+  // 잠금 오버레이 표시 (메시지 업데이트)
+  const overlay = document.getElementById('lockOverlay');
+  const codeIcons = {
+    'LINK_EXPIRED': '⏰',
+    'LINK_DELETED': '🗑️',
+    'LINK_INACTIVE': '⏸️',
+    'SESSION_EXPIRED': '🔒',
+  };
+  overlay.querySelector('.lock-icon').textContent = codeIcons[code] || '🔒';
+  overlay.querySelector('h2').textContent = code === 'LINK_EXPIRED' ? '링크가 만료되었습니다' :
+                                            code === 'LINK_DELETED' ? '링크가 삭제되었습니다' :
+                                            code === 'LINK_INACTIVE' ? '링크가 비활성화되었습니다' :
+                                            '세션이 종료되었습니다';
+  overlay.querySelector('p').innerHTML = message + '<br><br>계속 사용하시려면 관리자에게<br>새로운 링크를 요청해주세요.';
+  overlay.querySelector('.lock-badge').textContent = '접근 권한이 만료되었습니다';
+  overlay.classList.remove('hidden');
+
+  // 진행 중인 작업 알림
+  toast('🚫 접근 권한이 만료되어 세션이 종료되었습니다.');
+}
 
 function requireSession() {
   if (!sessionValid) {
