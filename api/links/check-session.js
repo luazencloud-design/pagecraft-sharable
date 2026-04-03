@@ -1,9 +1,8 @@
 import { getStore } from './_store.js';
+import { setCors, sanitizeError } from './_auth.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -27,7 +26,6 @@ export default async function handler(req, res) {
     // ② 원본 링크의 유효성도 함께 검증
     const linkRaw = await store.get(`link:${session.linkToken}`);
     if (!linkRaw) {
-      // 링크가 삭제됨 → 세션도 즉시 삭제
       await store.del(`session:${sessionToken}`);
       return res.status(403).json({
         valid: false,
@@ -61,7 +59,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ⑤ 유효 → 남은 시간 정보 포함 응답
+    // ⑤ 유효 → 남은 시간 정보 포함 응답 (linkToken은 노출하지 않음)
     const now = Date.now();
     let remainingMs = null;
     if (link.expiresAt) {
@@ -71,13 +69,12 @@ export default async function handler(req, res) {
     return res.status(200).json({
       valid: true,
       title: session.title,
-      linkToken: session.linkToken,
       expiresAt: link.expiresAt || null,
       remainingMs,
     });
 
   } catch (err) {
     console.error('세션 확인 에러:', err);
-    return res.status(500).json({ valid: false, error: err.message });
+    return res.status(500).json({ valid: false, error: sanitizeError(err) });
   }
 }

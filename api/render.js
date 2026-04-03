@@ -1,6 +1,7 @@
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { verifySession, setCors, sanitizeError } from './links/_auth.js';
 
 // ── 한글 폰트 로딩 (Vercel 서버리스 환경 대응) ──
 let fontsLoaded = false;
@@ -73,11 +74,13 @@ async function ensureFonts() {
 
 // ── 메인 핸들러 ──
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // ── 세션 검증 (인증된 사용자만 렌더링 가능) ──
+  const session = await verifySession(req);
+  if (!session.ok) return res.status(session.status).json({ error: session.error });
 
   try {
     // 폰트 로드 (cold start 시에만 실행)
@@ -463,6 +466,6 @@ export default async function handler(req, res) {
 
   } catch(err) {
     console.error(err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: sanitizeError(err) });
   }
 }

@@ -1,4 +1,5 @@
 import { getStore } from './_store.js';
+import { verifyAdmin, setCors, sanitizeError } from './_auth.js';
 
 // 특정 링크에 연결된 모든 세션을 즉시 삭제
 async function revokeSessionsForLink(store, linkToken) {
@@ -22,19 +23,11 @@ async function revokeSessionsForLink(store, linkToken) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  setCors(req, res, 'POST, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const adminPw = process.env.ADMIN_PASSWORD;
-  if (!adminPw) return res.status(500).json({ error: 'ADMIN_PASSWORD 환경변수가 설정되지 않았습니다.' });
-
-  const authHeader = req.headers.authorization || '';
-  const providedPw = authHeader.replace('Bearer ', '');
-  if (providedPw !== adminPw) {
-    return res.status(401).json({ error: '관리자 인증 실패' });
-  }
+  const auth = verifyAdmin(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
 
   try {
     const store = await getStore();
@@ -89,6 +82,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('링크 관리 에러:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: sanitizeError(err) });
   }
 }

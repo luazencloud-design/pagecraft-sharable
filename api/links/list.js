@@ -1,20 +1,13 @@
 import { getStore } from './_store.js';
+import { verifyAdmin, setCors, sanitizeError } from './_auth.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  setCors(req, res, 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const adminPw = process.env.ADMIN_PASSWORD;
-  if (!adminPw) return res.status(500).json({ error: 'ADMIN_PASSWORD 환경변수가 설정되지 않았습니다.' });
-
-  const authHeader = req.headers.authorization || '';
-  const providedPw = authHeader.replace('Bearer ', '');
-  if (providedPw !== adminPw) {
-    return res.status(401).json({ error: '관리자 인증 실패' });
-  }
+  const auth = verifyAdmin(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
 
   try {
     const store = await getStore();
@@ -29,13 +22,12 @@ export default async function handler(req, res) {
       }
     }
 
-    // 최신순 정렬
     links.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return res.status(200).json({ success: true, links });
 
   } catch (err) {
     console.error('링크 목록 에러:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: sanitizeError(err) });
   }
 }

@@ -712,10 +712,12 @@ let _sessionExpiryTimer = null;
 let _countdownTimer = null;
 
 const SESSION_POLL_INTERVAL = 15000; // 15초마다 서버 검증
+const SESSION_STORAGE_KEY = 'pagecraft_session';
 
 (async function initSession() {
   const params = new URLSearchParams(window.location.search);
-  const s = params.get('s');
+  // URL 파라미터 우선, 없으면 sessionStorage에서 복원
+  const s = params.get('s') || sessionStorage.getItem(SESSION_STORAGE_KEY);
   if (!s) return; // 세션 없으면 잠금 유지
 
   _sessionToken = s;
@@ -729,8 +731,10 @@ const SESSION_POLL_INTERVAL = 15000; // 15초마다 서버 검증
     const data = await res.json();
     if (data.valid) {
       sessionValid = true;
+      // sessionStorage에 저장 (새로고침 시 복원용)
+      sessionStorage.setItem(SESSION_STORAGE_KEY, s);
       document.getElementById('lockOverlay').classList.add('hidden');
-      // URL에서 세션 파라미터 숨기기 (깔끔하게)
+      // URL에서 세션 파라미터 숨기기
       history.replaceState(null, '', '/');
 
       // ▶ 만료 시간이 있으면 정밀 타이머 설정
@@ -741,9 +745,15 @@ const SESSION_POLL_INTERVAL = 15000; // 15초마다 서버 검증
 
       // ▶ 주기적 서버 검증 시작 (관리자가 수동 비활성화/삭제 시 대응)
       _startSessionPolling();
+    } else {
+      // 세션이 유효하지 않으면 저장된 토큰 제거
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      _sessionToken = null;
     }
   } catch (e) {
     console.error('세션 확인 실패:', e);
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    _sessionToken = null;
   }
 })();
 
@@ -839,6 +849,7 @@ function _revokeSession(code, message) {
   if (!sessionValid) return; // 이미 차단됨
   sessionValid = false;
   _sessionToken = null;
+  sessionStorage.removeItem(SESSION_STORAGE_KEY);
 
   // 모든 타이머 정리
   if (_sessionPollTimer) clearInterval(_sessionPollTimer);
@@ -876,6 +887,14 @@ function requireSession() {
     return false;
   }
   return true;
+}
+
+// ── 세션 토큰 포함 API 요청 헤더 ──
+function apiHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'X-Session-Token': _sessionToken || '',
+  };
 }
 
 const imgs = [];
@@ -1215,7 +1234,7 @@ document.getElementById('genBtn').onclick = async function() {
 
   try {
     const resp = await fetch('/api/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:apiHeaders(),
       body: JSON.stringify({
         model: 'gemini-2.5-flash',
         systemInstruction: { parts: [{ text: sys }] },
@@ -1264,7 +1283,7 @@ document.getElementById('genBtn').onclick = async function() {
     document.getElementById('loadSub').textContent = '상세페이지를 이미지로 변환 중';
 
     const renderResp = await fetch('/api/render', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:apiHeaders(),
       body: JSON.stringify({
         data: parsed,
         price: price,
@@ -1441,7 +1460,7 @@ async function runTitleGen() {
 
   try {
     const resp = await fetch('/api/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:apiHeaders(),
       body: JSON.stringify({
         model: 'gemini-2.5-flash',
         systemInstruction: { parts: [{ text: sys }] },
@@ -1524,7 +1543,7 @@ async function runTagGen() {
 
   try {
     const resp = await fetch('/api/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:apiHeaders(),
       body: JSON.stringify({
         model: 'gemini-2.5-flash',
         systemInstruction: { parts: [{ text: sys }] },
