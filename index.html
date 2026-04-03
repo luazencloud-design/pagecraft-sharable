@@ -758,6 +758,10 @@ const SESSION_STORAGE_KEY = 'pagecraft_session';
 })();
 
 // 만료 시각에 정확히 맞춰 권한 차단
+// ⚠️ setTimeout은 32비트 정수 한계(≈24.8일)를 초과하면 즉시 실행됨
+// → 24시간 단위로 나눠서 재스케줄링
+const TIMER_SAFE_MAX = 24 * 60 * 60 * 1000; // 24시간
+
 function _setupExpiryTimer(expiresAt) {
   if (_sessionExpiryTimer) clearTimeout(_sessionExpiryTimer);
   const remaining = new Date(expiresAt).getTime() - Date.now();
@@ -765,9 +769,11 @@ function _setupExpiryTimer(expiresAt) {
     _revokeSession('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
     return;
   }
+  // 남은 시간이 안전 한계를 초과하면 24시간 후 재확인
+  const delay = Math.min(remaining, TIMER_SAFE_MAX);
   _sessionExpiryTimer = setTimeout(() => {
-    _revokeSession('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
-  }, remaining);
+    _setupExpiryTimer(expiresAt); // 재귀: 남은 시간 다시 계산
+  }, delay);
 }
 
 // 남은 시간 카운트다운 표시
