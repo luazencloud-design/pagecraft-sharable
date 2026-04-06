@@ -86,7 +86,7 @@ export default async function handler(req, res) {
     // 폰트 로드 (cold start 시에만 실행)
     await ensureFonts();
 
-    const { data: d, price, images } = req.body;
+    const { data: d, price, images, storeIntroImage, termsImage } = req.body;
     const W = 800;
 
     // 색상
@@ -135,6 +135,24 @@ export default async function handler(req, res) {
     // 편의 함수: 해당 인덱스 이미지가 존재하는지
     const hasImg = (idx) => idx < loadedImgs.length && loadedImgs[idx] !== null;
 
+    // ── 스토어 소개 / 약관 이미지 로드 (가로폭 W에 맞춰 비율 유지) ──
+    async function loadExtraImage(dataUrl) {
+      if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.includes(',')) return null;
+      try {
+        const buf = Buffer.from(dataUrl.split(',')[1], 'base64');
+        const img = await loadImage(buf);
+        const drawH = Math.round(img.height * (W / img.width));
+        return { img, w: img.width, h: img.height, drawH };
+      } catch (e) {
+        console.warn('extra image load failed:', e.message);
+        return null;
+      }
+    }
+    const storeImgObj = await loadExtraImage(storeIntroImage);
+    const termsImgObj = await loadExtraImage(termsImage);
+    const storeH = storeImgObj ? storeImgObj.drawH : 0;
+    const termsH = termsImgObj ? termsImgObj.drawH : 0;
+
     // 메인/컬러 높이 계산
     const mainH   = hasImg(0) ? MAIN_PHOTO_H : 0;
     const hasColorImgs = hasImg(1) || hasImg(2);
@@ -172,13 +190,13 @@ export default async function handler(req, res) {
     // 17. 주의사항 (cautH)
     // 18. 푸터 (footH)
 
-    const total = heroH + mainH + copyH
+    const total = storeH + heroH + mainH + copyH
       + divH(3) + divH(7) + ptH
       + divH(4) + divH(8)
       + descH1 + divH(5) + descH2
       + divH(6) + divH(9)
       + (hasColorImgs ? lbl2H + colorH : 0)
-      + specH + kwH + cautH + footH;
+      + specH + kwH + cautH + footH + termsH;
 
     const canvas = createCanvas(W, total);
     const ctx = canvas.getContext('2d');
@@ -249,6 +267,15 @@ export default async function handler(req, res) {
     }
 
     let y = 0;
+
+    // ══════════════════════════════════════════════
+    // 0. 스토어 소개 (헤더 위)
+    // ══════════════════════════════════════════════
+    if (storeImgObj) {
+      fillRect(0, y, W, storeH, BG);
+      ctx.drawImage(storeImgObj.img, 0, 0, storeImgObj.w, storeImgObj.h, 0, y, W, storeH);
+      y += storeH;
+    }
 
     // ══════════════════════════════════════════════
     // 1. 헤더
@@ -456,6 +483,16 @@ export default async function handler(req, res) {
     } else {
       centerText('PageCraft Pro  ·  AI 상세페이지 생성기', y+44, YELLOW, 13, true);
       centerText('Made with PageCraft Pro', y+68, '#555568', 10);
+    }
+    y += footH;
+
+    // ══════════════════════════════════════════════
+    // 19. 약관 (푸터 아래)
+    // ══════════════════════════════════════════════
+    if (termsImgObj) {
+      fillRect(0, y, W, termsH, BG);
+      ctx.drawImage(termsImgObj.img, 0, 0, termsImgObj.w, termsImgObj.h, 0, y, W, termsH);
+      y += termsH;
     }
 
     // PNG 출력

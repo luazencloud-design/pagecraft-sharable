@@ -94,7 +94,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* ── MAIN LAYOUT ── */
 .app{
   display:grid;
-  grid-template-columns:300px 1fr 320px;
+  grid-template-columns:450px 1fr 480px;
   height:calc(100vh - 48px);
   margin-top:48px;
   overflow:hidden;
@@ -132,6 +132,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* Thumb Grid */
 .thumb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:6px 18px 0}
+.single-thumb{padding:8px 18px 0}
+.single-thumb .sth-wrap{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.single-thumb img{width:100%;display:block}
+.single-thumb .sth-del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.75);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1}
 .thumb{
   position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;
   border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s;
@@ -575,6 +579,32 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="field-group">
     <div class="field-label"><span class="dot"></span>추가 설명 (선택)</div>
     <textarea id="memo" class="field-textarea" placeholder="색상, 소재, 특징, 타깃 고객 등 자유롭게 입력"></textarea>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="panel-section"><div class="panel-section-title">스토어 소개 (헤더 위)</div></div>
+  <div class="panel-section" style="padding-top:0">
+    <div class="upload-zone" id="dzStore">
+      <div class="upload-icon">🏪</div>
+      <h4>스토어 소개 이미지</h4>
+      <p>상세페이지 맨 위(헤더 위)에 표시<br>이미지 파일 1장</p>
+      <input type="file" id="fiStore" accept="image/*" style="display:none">
+    </div>
+    <div id="storeThumb" class="single-thumb"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="panel-section"><div class="panel-section-title">약관 (푸터 아래)</div></div>
+  <div class="panel-section" style="padding-top:0">
+    <div class="upload-zone" id="dzTerms">
+      <div class="upload-icon">📜</div>
+      <h4>약관 이미지</h4>
+      <p>상세페이지 맨 아래(푸터 아래)에 표시<br>이미지 파일 1장</p>
+      <input type="file" id="fiTerms" accept="image/*" style="display:none">
+    </div>
+    <div id="termsThumb" class="single-thumb"></div>
   </div>
 
   <div class="divider"></div>
@@ -1077,6 +1107,36 @@ async function processAllBgRemoval() {
 
 // ── 업로드 ────────────────────────────────────
 document.getElementById('fi').onchange = e => handleFiles(e.target.files);
+
+// ── 스토어 소개 / 약관 단일 업로드 ──
+let storeIntroImgData = null;
+let termsImgData = null;
+function setupSingleUpload(dzId, fiId, thumbId, kind) {
+  const dzEl = document.getElementById(dzId);
+  const fiEl = document.getElementById(fiId);
+  dzEl.onclick = () => fiEl.click();
+  dzEl.ondragover = e => { e.preventDefault(); dzEl.classList.add('drag'); };
+  dzEl.ondragleave = () => dzEl.classList.remove('drag');
+  dzEl.ondrop = e => { e.preventDefault(); dzEl.classList.remove('drag'); if (e.dataTransfer.files[0]) handleSingleFile(e.dataTransfer.files[0], thumbId, kind); };
+  fiEl.onchange = e => { if (e.target.files[0]) handleSingleFile(e.target.files[0], thumbId, kind); };
+}
+async function handleSingleFile(file, thumbId, kind) {
+  if (!file.type.startsWith('image/')) return;
+  try {
+    const dataUrl = await compressImage(file, 1200);
+    if (kind === 'store') storeIntroImgData = dataUrl;
+    else if (kind === 'terms') termsImgData = dataUrl;
+    document.getElementById(thumbId).innerHTML =
+      `<div class="sth-wrap"><img src="${dataUrl}"><button class="sth-del" onclick="clearSingle('${thumbId}','${kind}')">✕</button></div>`;
+  } catch(e) { console.error('single upload error:', e); }
+}
+function clearSingle(thumbId, kind) {
+  document.getElementById(thumbId).innerHTML = '';
+  if (kind === 'store') storeIntroImgData = null;
+  else if (kind === 'terms') termsImgData = null;
+}
+setupSingleUpload('dzStore', 'fiStore', 'storeThumb', 'store');
+setupSingleUpload('dzTerms', 'fiTerms', 'termsThumb', 'terms');
 const dz = document.getElementById('dz');
 dz.onclick = () => document.getElementById('fi').click();
 dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag'); };
@@ -1293,7 +1353,9 @@ document.getElementById('genBtn').onclick = async function() {
       body: JSON.stringify({
         data: parsed,
         price: price,
-        images: imgs.slice(0,10).map(im=>im.data)
+        images: imgs.slice(0,10).map(im=>im.data),
+        storeIntroImage: storeIntroImgData,
+        termsImage: termsImgData
       })
     });
 
