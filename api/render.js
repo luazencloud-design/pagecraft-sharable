@@ -284,7 +284,23 @@ export default async function handler(req, res) {
     const bt = 'NATIONAL GEOGRAPHIC STYLE  ·  FASHION & ACCESSORY';
     centerText(bt, y+24, YELLOW, 10);
     const ti = d.product_name || '상품 상세페이지';
-    centerText(ti.length > 18 ? ti.slice(0,18)+'...' : ti, y+58, '#ffffff', 24, true);
+    // 제목 (두껍게 — stroke + fill, 길이 제한 없음 / 너무 길면 자동 축소)
+    const titleStr = ti;
+    const maxTitleW = W - 80;
+    let titleSize = 24;
+    ctx.font = `900 ${titleSize}px "${fontR}", sans-serif`;
+    while (ctx.measureText(titleStr).width > maxTitleW && titleSize > 12) {
+      titleSize -= 1;
+      ctx.font = `900 ${titleSize}px "${fontR}", sans-serif`;
+    }
+    const tw = ctx.measureText(titleStr).width;
+    const tx = (W - tw) / 2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(titleStr, tx, y+58);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(titleStr, tx, y+58);
     const su = d.subtitle || '';
     centerText(su, y+86, LGRAY, 13);
     y += heroH;
