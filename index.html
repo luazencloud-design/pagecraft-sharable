@@ -1345,6 +1345,9 @@ document.getElementById('genBtn').onclick = async function() {
 
     resultData = parsed;
 
+    // 왼쪽 입력란의 상품명이 있으면 그대로 제목에 사용
+    if (pname) parsed.product_name = pname;
+
     document.getElementById('loadMsg').textContent = '이미지 렌더링 중...';
     document.getElementById('loadSub').textContent = '상세페이지를 이미지로 변환 중';
 
