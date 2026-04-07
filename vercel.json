@@ -17,6 +17,9 @@
     },
     "api/generate-model.js": {
       "maxDuration": 60
+    },
+    "api/ip-check.js": {
+      "maxDuration": 10
     }
   }
 }

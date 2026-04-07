@@ -1,16 +1,19 @@
+import { getStore } from './links/_store.js';
+
 // ── AI 모델 이미지 생성 ──
 // gemini-2.5-flash-image 모델로 상품 착용 모델 이미지 생성
-// 월 100개 제한 (인메모리 카운터 — Vercel 서버리스에서는 cold start마다 리셋됨)
-// ⚠️ 프로덕션에서는 KV/DB 기반 카운터로 교체 필요
+// Vercel KV 기반 IP별 월 100장 제한 (첫 방문일 기준 30일 주기)
 
-let monthlyCount = { month: new Date().getMonth(), count: 0 };
+const CYCLE_DAYS = 30;
+const CYCLE_MS = CYCLE_DAYS * 24 * 60 * 60 * 1000;
+const LIMIT = 100;
 
-function checkMonthlyLimit() {
-  const now = new Date().getMonth();
-  if (monthlyCount.month !== now) {
-    monthlyCount = { month: now, count: 0 };
-  }
-  return monthlyCount.count < 100;
+function calcCycle(firstVisitIso) {
+  const firstVisit = new Date(firstVisitIso).getTime();
+  const now = Date.now();
+  const cyclesPassed = Math.floor((now - firstVisit) / CYCLE_MS);
+  const currentCycleStart = firstVisit + cyclesPassed * CYCLE_MS;
+  return currentCycleStart;
 }
 
 // ── 카테고리별 촬영 포커스 결정 ──
@@ -18,7 +21,6 @@ function getCameraFocus(category, productName) {
   const name = (productName || '').toLowerCase();
   const cat = (category || '').toLowerCase();
 
-  // 1) 상품명에서 구체적 아이템 감지 (카테고리보다 우선)
   if (/귀걸이|이어링|귀/.test(name)) return { part: 'ears and face', shot: 'close-up head and shoulders shot focusing on the ears', crop: 'head to shoulders' };
   if (/목걸이|네크리스|펜던트|목/.test(name)) return { part: 'neck and chest', shot: 'close-up upper body shot focusing on the neckline', crop: 'face to mid-chest' };
   if (/팔찌|뱅글|시계|손목/.test(name)) return { part: 'wrist and forearm', shot: 'close-up shot of the wrist and hand area', crop: 'elbow to fingertips' };
@@ -27,7 +29,6 @@ function getCameraFocus(category, productName) {
   if (/벨트/.test(name)) return { part: 'waist', shot: 'mid-body shot focusing on the waist and belt area', crop: 'chest to thighs' };
   if (/양말|삭스/.test(name)) return { part: 'feet and ankles', shot: 'low-angle shot focusing on the feet and ankles', crop: 'knees to feet' };
 
-  // 2) 카테고리 기반 포커스
   if (/패딩|점퍼|집업|후리스|후리|티셔츠|맨투맨|상의|자켓|코트|셔츠|블라우스|니트|가디건|조끼/.test(cat)) {
     return { part: 'upper body', shot: '3/4 upper body shot focusing on the torso and outerwear details', crop: 'head to waist' };
   }
@@ -53,8 +54,26 @@ function getCameraFocus(category, productName) {
     return { part: 'accessory area', shot: 'close-up shot clearly showcasing the accessory being worn', crop: 'focused on accessory location' };
   }
 
-  // 3) 기본: 전신
   return { part: 'full body', shot: 'full body shot showing the complete outfit', crop: 'head to toe' };
+}
+
+// ── IP에서 사용량 조회/업데이트 공통 로직 ──
+async function getIpUsage(store, clientIp) {
+  const ipRaw = await store.get(`ip:${clientIp}`);
+  if (!ipRaw) return { registered: false };
+
+  const ipData = typeof ipRaw === 'string' ? JSON.parse(ipRaw) : ipRaw;
+  const currentCycleStart = calcCycle(ipData.firstVisit);
+
+  const usageRaw = await store.get(`ip-usage:${clientIp}`);
+  let usage = usageRaw ? (typeof usageRaw === 'string' ? JSON.parse(usageRaw) : usageRaw) : null;
+
+  // 새 주기면 리셋
+  if (!usage || usage.cycleStart !== currentCycleStart) {
+    usage = { count: 0, cycleStart: currentCycleStart };
+  }
+
+  return { registered: true, ipData, usage, currentCycleStart };
 }
 
 export default async function handler(req, res) {
@@ -64,15 +83,25 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET: 남은 횟수 조회 (테스트/디버그용)
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || 'unknown';
+
+  const store = await getStore();
+
+  // ── GET: IP별 사용량 조회 ──
   if (req.method === 'GET') {
-    checkMonthlyLimit();
+    const info = await getIpUsage(store, clientIp);
+    if (!info.registered) {
+      return res.status(200).json({ recognized: false, remaining: 0, used: 0, limit: LIMIT });
+    }
+    const remaining = Math.max(0, LIMIT - info.usage.count);
     return res.status(200).json({
-      remaining: 100 - monthlyCount.count,
-      used: monthlyCount.count,
-      limit: 100,
-      currentMonth: monthlyCount.month,
-      note: '⚠️ 인메모리 카운터: Vercel cold start 시 리셋됨. 프로덕션에서는 KV/DB 사용 권장.'
+      recognized: true,
+      remaining,
+      used: info.usage.count,
+      limit: LIMIT,
+      cycleResetAt: new Date(info.currentCycleStart + CYCLE_MS).toISOString(),
     });
   }
 
@@ -81,19 +110,35 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API 키가 설정되지 않았습니다.' });
 
-  if (!checkMonthlyLimit()) {
-    return res.status(429).json({
-      error: '이번 달 AI 모델 이미지 생성 한도(100개)를 초과했습니다.',
-      remaining: 0, used: monthlyCount.count, limit: 100
+  // ── 테스트용: _testCount 파라미터 ──
+  if (req.body._testCount !== undefined) {
+    const info = await getIpUsage(store, clientIp);
+    if (!info.registered) {
+      return res.status(403).json({ error: '등록되지 않은 IP입니다.' });
+    }
+    const testCount = parseInt(req.body._testCount, 10) || 0;
+    const usage = { count: testCount, cycleStart: info.currentCycleStart };
+    await store.set(`ip-usage:${clientIp}`, JSON.stringify(usage));
+    return res.status(200).json({
+      message: `테스트: ${clientIp}의 카운터를 ${testCount}로 설정했습니다.`,
+      remaining: LIMIT - testCount, used: testCount, limit: LIMIT
     });
   }
 
-  // ── 테스트용: _testCount 파라미터로 카운터 강제 설정 ──
-  if (req.body._testCount !== undefined) {
-    monthlyCount.count = parseInt(req.body._testCount, 10) || 0;
-    return res.status(200).json({
-      message: `테스트: 카운터를 ${monthlyCount.count}로 설정했습니다.`,
-      remaining: 100 - monthlyCount.count, used: monthlyCount.count, limit: 100
+  // ── IP 등록 확인 ──
+  const info = await getIpUsage(store, clientIp);
+  if (!info.registered) {
+    return res.status(403).json({
+      error: '등록되지 않은 접근입니다. 유효한 링크를 통해 먼저 접근해주세요.',
+      code: 'IP_NOT_REGISTERED'
+    });
+  }
+
+  // ── 한도 확인 ──
+  if (info.usage.count >= LIMIT) {
+    return res.status(429).json({
+      error: `AI 모델 이미지 생성 한도(${LIMIT}개)를 초과했습니다. ${new Date(info.currentCycleStart + CYCLE_MS).toLocaleDateString('ko-KR')}에 초기화됩니다.`,
+      remaining: 0, used: info.usage.count, limit: LIMIT
     });
   }
 
@@ -136,16 +181,13 @@ TECHNICAL:
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`;
 
-    // 모든 상품 이미지를 참고 이미지로 포함 (최대 5장)
     const imageParts = [];
     if (productImages && Array.isArray(productImages)) {
       for (const imgData of productImages.slice(0, 5)) {
         if (!imgData || typeof imgData !== 'string') continue;
         const mimeMatch = imgData.match(/^data:(image\/\w+);base64,/);
         if (mimeMatch) {
-          imageParts.push({
-            inlineData: { mimeType: mimeMatch[1], data: imgData.split(',')[1] }
-          });
+          imageParts.push({ inlineData: { mimeType: mimeMatch[1], data: imgData.split(',')[1] } });
         }
       }
     }
@@ -178,18 +220,18 @@ TECHNICAL:
     const imagePart = parts.find(p => p.inlineData);
 
     if (!imagePart) {
-      return res.status(500).json({
-        error: 'AI가 이미지를 생성하지 못했습니다. 다시 시도해주세요.'
-      });
+      return res.status(500).json({ error: 'AI가 이미지를 생성하지 못했습니다. 다시 시도해주세요.' });
     }
 
-    monthlyCount.count++;
+    // ── 카운터 증가 & KV 저장 ──
+    info.usage.count += 1;
+    await store.set(`ip-usage:${clientIp}`, JSON.stringify(info.usage));
 
     return res.status(200).json({
       image: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
-      remaining: 100 - monthlyCount.count,
-      used: monthlyCount.count,
-      limit: 100,
+      remaining: LIMIT - info.usage.count,
+      used: info.usage.count,
+      limit: LIMIT,
       focus: focus.part
     });
 

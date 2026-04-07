@@ -549,6 +549,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="tb-badge">패션 · 의류 · 잡화</div>
 </div>
 
+<!-- IP 잠금 오버레이 -->
+<div id="ipLockOverlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity 0.4s">
+  <div style="text-align:center;max-width:400px;padding:40px">
+    <div style="font-size:48px;margin-bottom:16px">🔒</div>
+    <h2 style="font-family:var(--serif);color:var(--accent);margin-bottom:8px;font-size:20px">접근 권한 필요</h2>
+    <p style="color:var(--text2);font-size:13px;line-height:1.8;margin-bottom:16px">관리자가 발급한 공유 링크를 통해<br>접근해주세요.</p>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--surface2);padding:6px 14px;border-radius:6px;border:1px solid var(--border);display:inline-block">인증된 링크로 접속 필요</div>
+  </div>
+</div>
+
 <div class="app">
 
 <aside class="left-panel">
@@ -797,6 +807,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div class="toast" id="toast"></div>
 
 <script>
+// ── IP 인증 체크 ──
+let ipRecognized = false;
+
+(async function checkIpAccess() {
+  try {
+    const resp = await fetch('/api/ip-check');
+    const data = await resp.json();
+    if (data.recognized) {
+      ipRecognized = true;
+      document.getElementById('ipLockOverlay').style.display = 'none';
+      // 잔여 횟수 반영
+      if (data.remaining !== undefined) {
+        updateAiModelUsageUI(data.remaining, data.limit || 100);
+      }
+    }
+    // recognized === false → 오버레이 유지
+  } catch (e) {
+    console.warn('IP 확인 실패:', e);
+    // 네트워크 에러 시 접근 허용 (graceful degradation)
+    ipRecognized = true;
+    document.getElementById('ipLockOverlay').style.display = 'none';
+  }
+})();
+
 const imgs = [];
 let selF = [];
 let resultData = null;
@@ -1188,6 +1222,11 @@ async function generateModelImage() {
       body: JSON.stringify({ productName: pname || cat, category: cat, gender: aiModelGender, productImages: imgs.slice(0, 5).map(im => im.data) })
     });
     const data = await resp.json();
+    if (resp.status === 403) {
+      document.getElementById('ipLockOverlay').style.display = 'flex';
+      toast('🔒 등록되지 않은 접근입니다. 유효한 링크로 접속해주세요.');
+      btn.disabled = false; btn.classList.remove('loading'); return;
+    }
     if (resp.ok && data.image) {
       imgs.push({ name: 'ai-model.png', data: data.image, original: data.image, bgProcessed: false, isAiModel: true });
       renderThumbs(); aiModelGeneratedThisSession = true; updateAiModelCount();
