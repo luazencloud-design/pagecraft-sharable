@@ -517,6 +517,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .thumb-checkbox.checked{
   background:var(--accent);border-color:var(--accent);color:#0c0c10;
 }
+.aimodel-action-row{display:none;flex-direction:column;gap:6px;padding:4px 18px 8px}
+.aimodel-action-row.show{display:flex}
+.aimodel-gen-btn{width:100%;padding:8px;border-radius:7px;font-size:11px;font-weight:700;background:var(--green);border:none;color:#fff;cursor:pointer;font-family:var(--font);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px}
+.aimodel-gen-btn:hover:not(:disabled){background:#2db87a;transform:translateY(-1px)}
+.aimodel-gen-btn:disabled{background:var(--surface3);color:var(--text3);cursor:not-allowed;transform:none}
+.aimodel-gen-btn .mini-spin{width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:none}
+.aimodel-gen-btn.loading .mini-spin{display:inline-block}
+.aimodel-gen-btn.loading .btn-label{display:none}
+.aimodel-usage{font-size:10px;color:var(--text3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.aimodel-usage-bar{width:100%;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;flex:1}
+.aimodel-usage-fill{height:100%;background:var(--green);border-radius:2px;transition:width 0.3s}
+.img-preview-modal{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;cursor:pointer}
+.img-preview-modal.show{display:flex}
+.img-preview-modal img{max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.5)}
+.img-preview-close{position:fixed;top:20px;right:24px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:10001;display:flex;align-items:center;justify-content:center}
+.img-preview-close:hover{background:rgba(255,255,255,0.3)}
 </style>
 </head>
 <body>
@@ -573,8 +589,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
     <span class="aimodel-count" id="aiModelCount"></span>
   </div>
+  <div class="aimodel-action-row" id="aiModelActionRow">
+    <button class="aimodel-gen-btn" id="aiModelGenBtn" onclick="generateModelImage()">
+      <div class="mini-spin"></div>
+      <span class="btn-label">🧑 이미지 생성</span>
+    </button>
+    <div class="aimodel-usage">
+      <span id="aiModelUsageText">0/100 사용</span>
+      <div class="aimodel-usage-bar"><div class="aimodel-usage-fill" id="aiModelUsageFill" style="width:0%"></div></div>
+    </div>
+  </div>
 
   <div id="thumbGrid" class="thumb-grid"></div>
+
+  <div class="img-preview-modal" id="imgPreviewModal" onclick="closePreview()">
+    <button class="img-preview-close" onclick="closePreview()">✕</button>
+    <img id="imgPreviewSrc" src="" alt="미리보기">
+  </div>
 
   <div class="divider"></div>
 
@@ -1077,16 +1108,27 @@ function renderThumbs() {
   document.getElementById('thumbGrid').innerHTML = imgs.map((im,i) =>
     `<div class="thumb" style="position:relative" draggable="true"
           ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event)" ondragenter="onDragEnter(event)"
-          ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd(event)">
+          ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd(event)"
+          onclick="openPreview(${i})">
       <img src="${im.data}">
       ${im.bgProcessed ? '<div class="thumb-done">✓</div>' : ''}
+      ${im.isAiModel ? '<div style="position:absolute;top:3px;left:3px;font-size:8px;background:var(--green);color:#fff;padding:1px 4px;border-radius:3px;z-index:2">AI</div>' : ''}
       <div class="thumb-checkbox ${im.bgSelected ? 'checked' : ''}" onclick="event.stopPropagation();toggleBgSelect(${i})">✓</div>
-      <button class="thumb-del" onclick="rmImg(${i})">✕</button>
+      <button class="thumb-del" onclick="event.stopPropagation();rmImg(${i})">✕</button>
     </div>`
   ).join('');
   document.getElementById('statusImgs').textContent = `사진 ${imgs.length}장`;
 }
 function rmImg(i) { imgs.splice(i,1); renderThumbs(); }
+function openPreview(i) {
+  if (i < 0 || i >= imgs.length) return;
+  document.getElementById('imgPreviewSrc').src = imgs[i].data;
+  document.getElementById('imgPreviewModal').classList.add('show');
+}
+function closePreview() {
+  document.getElementById('imgPreviewModal').classList.remove('show');
+  document.getElementById('imgPreviewSrc').src = '';
+}
 
 // ── 이미지 드래그 순서 변경 ──
 let dragIdx = null;
@@ -1116,7 +1158,7 @@ function toggleAiModel() {
   aiModelEnabled = !aiModelEnabled;
   document.getElementById('aiModelToggle').classList.toggle('on', aiModelEnabled);
   document.getElementById('aiModelGenderRow').classList.toggle('show', aiModelEnabled);
-  if (aiModelEnabled) updateAiModelCount();
+  document.getElementById('aiModelActionRow').classList.toggle('show', aiModelEnabled);
 }
 function setGender(btn) {
   document.querySelectorAll('.gender-opt').forEach(b => b.classList.remove('active'));
@@ -1125,7 +1167,38 @@ function setGender(btn) {
 }
 function updateAiModelCount() {
   const el = document.getElementById('aiModelCount');
-  if (el) el.textContent = aiModelGeneratedThisSession ? '이번 생성에 사용됨' : '생성 가능';
+  if (el) el.textContent = aiModelGeneratedThisSession ? '생성됨 ✓' : '';
+}
+function updateAiModelUsageUI(remaining, limit) {
+  const used = limit - remaining;
+  document.getElementById('aiModelUsageText').textContent = `${used}/${limit} 사용`;
+  document.getElementById('aiModelUsageFill').style.width = `${(used / limit) * 100}%`;
+  if (remaining <= 0) document.getElementById('aiModelGenBtn').disabled = true;
+}
+async function generateModelImage() {
+  if (aiModelGeneratedThisSession) { toast('⚠️ 이번 상세페이지에서 이미 모델 이미지를 생성했습니다.'); return; }
+  const pname = document.getElementById('pname').value.trim();
+  const cat = document.getElementById('cat').value;
+  if (!pname && imgs.length === 0) { toast('⚠️ 상품명을 입력하거나 상품 사진을 업로드해주세요.'); return; }
+  const btn = document.getElementById('aiModelGenBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  try {
+    const resp = await fetch('/api/generate-model', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ productName: pname || cat, category: cat, gender: aiModelGender, productImages: imgs.slice(0, 5).map(im => im.data) })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.image) {
+      imgs.push({ name: 'ai-model.png', data: data.image, original: data.image, bgProcessed: false, isAiModel: true });
+      renderThumbs(); aiModelGeneratedThisSession = true; updateAiModelCount();
+      updateAiModelUsageUI(data.remaining, data.limit || 100);
+      toast(`✅ AI 모델 이미지 생성 완료! (${data.remaining}회 남음)`);
+    } else {
+      toast(`⚠️ ${data.error || '모델 이미지 생성 실패'}`);
+      if (data.remaining !== undefined) updateAiModelUsageUI(data.remaining, data.limit || 100);
+    }
+  } catch (e) { console.error('AI 모델 이미지 생성 에러:', e); toast('⚠️ 모델 이미지 생성 중 오류가 발생했습니다.'); }
+  btn.disabled = aiModelGeneratedThisSession; btn.classList.remove('loading');
 }
 
 // ── 칩 ───────────────────────────────────────
@@ -1277,17 +1350,18 @@ document.getElementById('genBtn').onclick = async function() {
             productName: parsed.product_name || pname,
             category: cat,
             gender: aiModelGender,
-            productImageBase64: imgs.length > 0 ? imgs[0].data : null
+            productImages: imgs.slice(0, 5).map(im => im.data)
           })
         });
         if (modelResp.ok) {
           const modelData = await modelResp.json();
           if (modelData.image) {
-            imgs.push({ name: 'ai-model.png', data: modelData.image, original: modelData.image, bgProcessed: false });
+            imgs.push({ name: 'ai-model.png', data: modelData.image, original: modelData.image, bgProcessed: false, isAiModel: true });
             renderThumbs();
             aiModelGeneratedThisSession = true;
             updateAiModelCount();
-            toast(`✅ AI 모델 이미지 생성 완료! (남은 횟수: ${modelData.remaining})`);
+            updateAiModelUsageUI(modelData.remaining, modelData.limit || 100);
+            toast(`✅ AI 모델 이미지 생성 완료! (${modelData.remaining}회 남음)`);
           }
         } else {
           const errData = await modelResp.json().catch(() => ({}));
