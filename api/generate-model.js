@@ -47,7 +47,7 @@ The model should look confident and stylish, suitable for a Korean online shoppi
 No text, no watermark, no logo. Photorealistic, 4K quality.`;
 
     // Gemini의 이미지 생성 모델 사용
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-image-generation:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{
