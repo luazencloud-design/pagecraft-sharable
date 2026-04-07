@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<link rel="icon" type="image/x-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAgCAYAAACcuBHKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAPqSURBVFhH7ZRfTFtVHMe/59xSeqGF1kKBQpstNIOoiMAQkPgA+xNnAotZlsyHmbhpMPFhkmxqwhKc+uJYVPbiWDD4MiMmIomZZi7ZXJYxkqUsxkR8mGN0wOhoaW/b297Se8/xZRfLdYExJT7I5+n8vr/vufnmd3J/wCab/AcwCS1Mhtuo61CjsAEQAIehosHY0NnwEExGGYAWAM3G3obDAt0ik3CIxXCNSdCYhAUmYZBJaDF6/41JkPhYz/74xMmdxgYIiKE2r6gfsNK0TjgfyFEuXj5sdrr6eI41SNWcTlp/4rdsD5PhhoqLAEZpIXqyezqPPQke+dQev+TvMztdfQTEymdvlrN0pN7oo/m4B+A6gHFjT+exQvh8/bnxicn3rXbxCAGxqoGbIVUo7KblwrdGL+cgAL6ACX5dY4FukfOBHL1e93P4fP25EYwff6lWOdR70OH28lsharK9beo4f87o1eEclBCwv+qBHEST+bDnyYR0ZVa616Cioll0+l758KnWY6xo26v84L6XZ1M/HXjT6HsUmIRjTEIH1vUcjobCKIo/Ki2p6EnIMZJIRH8c/jnaLu7++ozRqvP0geslpz4Ze/3Zdyafz9ZZoFsEQQ2A6mx9VfJd7SXeZ94Y1SdgcXf+YHG0eo0+I2cGJz4OhZN8bHzu9/p9N5raa78vB3opALA4avRVvuYkLI5Wr7O0csBms3cGF4JEjkeGBTXxmhK5FtA9nIMyCR08COsDiTRWjzhtlsKGqck0Fqa4b4fd8p2n2D3SXru9DACoDb/SfMxhrRBmZ1uVy/Pk6ewAVJOPyPcvBbN9PIYmELzHLWgDgN3PXd5bs2XrhT9uqM1DpwL8wnCIymFWyjnfbsq1NmbfxWoh8tw76so9lV/ZbPbO6bu3NTkRHkwpc13GAAAIAarAsQ1ANeegBaLFoWa0uvlpJS8Rz/BEPMMj0RSPJmOEJrHT+Fc+NESBZ8+uEtfWQQahfvrubU1TlS9TqfmjiPgloxcAR8HAOQAnCcEQIWDz9+77Q0kpMhMMI5qMkWgyRhZliabVDGG5SlNj9cgT2R/4W4gCz55dxS7PWQahPrwYUsGWTq8SAABASFeGKPgcNiwCQJpqs+rS0lRazZDUUkpZigu3wmnTqKQK76qL6lssfyG24v7yaf83QsH4UHuxy3NW1cgWPYAdC8dnZsZT2ZfWppc2171w1GKiZWZCrkSjsV802/yM3//wxbQcwuJo9ZqsRVctYqFXUeR/EECnlwInlrfkagj6QRVdEIS8SqZlipgmf1YmvvjBnTuDykr7erjCjcojUVHRLJqdbVU+X3+usbfJJpv8b/kTiDOlAdybDUEAAAAASUVORK5CYII=">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PageCraft Pro v2.0 — 상품 상세페이지 · 상품명 · 태그 생성기</title>
@@ -463,33 +464,59 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
 
-/* ── 세션 잠금 오버레이 ── */
-.lock-overlay{
-  position:fixed;inset:0;z-index:9999;
-  background:rgba(12,12,16,0.85);backdrop-filter:blur(12px);
-  display:flex;align-items:center;justify-content:center;
-  transition:opacity 0.4s;
+/* ── AI 모델 이미지 생성 토글 ── */
+.aimodel-row{
+  display:flex;align-items:center;gap:8px;padding:8px 18px 4px;
 }
-.lock-overlay.hidden{opacity:0;pointer-events:none}
-.lock-card{
-  background:var(--surface);border:1px solid var(--border2);border-radius:20px;
-  padding:48px 40px;text-align:center;max-width:420px;width:90%;
-  box-shadow:0 24px 64px rgba(0,0,0,0.5);
+.aimodel-toggle{
+  width:34px;height:18px;border-radius:9px;
+  background:var(--surface3);border:1px solid var(--border2);
+  cursor:pointer;position:relative;transition:all 0.2s;flex-shrink:0;
 }
-.lock-icon{font-size:56px;margin-bottom:20px}
-.lock-card h2{font-family:var(--serif);font-size:22px;color:var(--accent);margin-bottom:10px}
-.lock-card p{color:var(--text2);font-size:13px;line-height:1.8;margin-bottom:24px}
-.lock-card .lock-badge{
-  display:inline-block;font-family:var(--mono);font-size:11px;
-  color:var(--text3);background:var(--surface2);border:1px solid var(--border);
-  padding:4px 12px;border-radius:6px;
+.aimodel-toggle.on{background:var(--accent);border-color:var(--accent)}
+.aimodel-toggle-knob{
+  position:absolute;top:2px;left:2px;width:12px;height:12px;
+  border-radius:50%;background:var(--text2);transition:all 0.2s;
 }
-.lock-card a.lock-admin{
-  display:inline-block;margin-top:16px;font-size:12px;color:var(--accent);
-  text-decoration:none;opacity:0.6;transition:opacity 0.2s;
+.aimodel-toggle.on .aimodel-toggle-knob{
+  transform:translateX(16px);background:#0c0c10;
 }
-.lock-card a.lock-admin:hover{opacity:1}
-@keyframes pulse-warn{0%,100%{opacity:1}50%{opacity:0.5}}
+.aimodel-label{font-size:11px;color:var(--text2);flex:1}
+.aimodel-badge{
+  font-size:9px;padding:2px 6px;border-radius:4px;
+  background:rgba(62,207,142,0.12);color:var(--green);font-weight:600;
+}
+.aimodel-gender-row{
+  display:none;align-items:center;gap:8px;padding:2px 18px 6px;
+}
+.aimodel-gender-row.show{display:flex}
+.gender-switch{
+  display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;
+}
+.gender-opt{
+  padding:4px 12px;font-size:10px;font-weight:600;cursor:pointer;
+  background:var(--surface2);color:var(--text3);border:none;
+  font-family:var(--font);transition:all 0.15s;
+}
+.gender-opt.active{background:var(--accent);color:#0c0c10}
+.aimodel-count{
+  font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:auto;
+}
+
+/* ── 이미지 드래그 순서 변경 ── */
+.thumb.dragging{opacity:0.4;border-color:var(--accent)}
+.thumb.drag-over{border:2px solid var(--accent);transform:scale(1.05)}
+
+/* ── 선택 배경 제거 체크박스 ── */
+.thumb-checkbox{
+  position:absolute;bottom:3px;left:3px;width:16px;height:16px;
+  border-radius:4px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);
+  cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:transparent;transition:all 0.15s;
+}
+.thumb-checkbox.checked{
+  background:var(--accent);border-color:var(--accent);color:#0c0c10;
+}
 </style>
 </head>
 <body>
@@ -504,18 +531,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div class="tb-badge">패션 · 의류 · 잡화</div>
-  <a href="/admin" class="tb-badge" style="text-decoration:none;color:var(--accent);border-color:var(--accent);cursor:pointer" title="링크 관리 어드민">🔐 링크관리</a>
-</div>
-
-<div class="lock-overlay" id="lockOverlay">
-  <div class="lock-card">
-    <div class="lock-icon">🔒</div>
-    <h2>접근 권한이 필요합니다</h2>
-    <p>이 AI 도구는 관리자가 발급한<br>전용 링크를 통해서만 사용할 수 있습니다.</p>
-    <div class="lock-badge">인증된 링크로 접속해주세요</div>
-    <br>
-    <a href="/admin" class="lock-admin">관리자이신가요? →</a>
-  </div>
 </div>
 
 <div class="app">
@@ -542,6 +557,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <span id="bgStatusText">배경 제거 준비 중...</span>
     <div class="bgremove-progress"><div class="bgremove-progress-bar" id="bgProgressBar"></div></div>
   </div>
+
+  <div class="aimodel-row">
+    <div class="aimodel-toggle" id="aiModelToggle" onclick="toggleAiModel()">
+      <div class="aimodel-toggle-knob"></div>
+    </div>
+    <span class="aimodel-label">AI 모델 이미지 생성</span>
+    <span class="aimodel-badge">AI</span>
+  </div>
+  <div class="aimodel-gender-row" id="aiModelGenderRow">
+    <span style="font-size:10px;color:var(--text3);margin-left:18px">모델 성별</span>
+    <div class="gender-switch">
+      <button class="gender-opt active" data-gender="female" onclick="setGender(this)">여성</button>
+      <button class="gender-opt" data-gender="male" onclick="setGender(this)">남성</button>
+    </div>
+    <span class="aimodel-count" id="aiModelCount"></span>
+  </div>
+
   <div id="thumbGrid" class="thumb-grid"></div>
 
   <div class="divider"></div>
@@ -734,205 +766,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div class="toast" id="toast"></div>
 
 <script>
-// ── 세션 검증 + 실시간 만료 감시 ─────────────────────────────────
-let sessionValid = false;
-let _sessionToken = null;
-let _sessionPollTimer = null;
-let _sessionExpiryTimer = null;
-let _countdownTimer = null;
-
-const SESSION_POLL_INTERVAL = 15000; // 15초마다 서버 검증
-const SESSION_STORAGE_KEY = 'pagecraft_session';
-
-(async function initSession() {
-  const params = new URLSearchParams(window.location.search);
-  // URL 파라미터 우선, 없으면 sessionStorage에서 복원
-  const s = params.get('s') || sessionStorage.getItem(SESSION_STORAGE_KEY);
-  if (!s) return; // 세션 없으면 잠금 유지
-
-  _sessionToken = s;
-
-  try {
-    const res = await fetch('/api/links/check-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionToken: s })
-    });
-    const data = await res.json();
-    if (data.valid) {
-      sessionValid = true;
-      // sessionStorage에 저장 (새로고침 시 복원용)
-      sessionStorage.setItem(SESSION_STORAGE_KEY, s);
-      document.getElementById('lockOverlay').classList.add('hidden');
-      // URL에서 세션 파라미터 숨기기
-      history.replaceState(null, '', '/');
-
-      // ▶ 만료 시간이 있으면 정밀 타이머 설정
-      if (data.expiresAt) {
-        _setupExpiryTimer(data.expiresAt);
-        _setupCountdown(data.expiresAt);
-      }
-
-      // ▶ 주기적 서버 검증 시작 (관리자가 수동 비활성화/삭제 시 대응)
-      _startSessionPolling();
-    } else {
-      // 세션이 유효하지 않으면 저장된 토큰 제거
-      sessionStorage.removeItem(SESSION_STORAGE_KEY);
-      _sessionToken = null;
-    }
-  } catch (e) {
-    console.error('세션 확인 실패:', e);
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    _sessionToken = null;
-  }
-})();
-
-// 만료 시각에 정확히 맞춰 권한 차단
-// ⚠️ setTimeout은 32비트 정수 한계(≈24.8일)를 초과하면 즉시 실행됨
-// → 24시간 단위로 나눠서 재스케줄링
-const TIMER_SAFE_MAX = 24 * 60 * 60 * 1000; // 24시간
-
-function _setupExpiryTimer(expiresAt) {
-  if (_sessionExpiryTimer) clearTimeout(_sessionExpiryTimer);
-  const remaining = new Date(expiresAt).getTime() - Date.now();
-  if (remaining <= 0) {
-    _revokeSession('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
-    return;
-  }
-  // 남은 시간이 안전 한계를 초과하면 24시간 후 재확인
-  const delay = Math.min(remaining, TIMER_SAFE_MAX);
-  _sessionExpiryTimer = setTimeout(() => {
-    _setupExpiryTimer(expiresAt); // 재귀: 남은 시간 다시 계산
-  }, delay);
-}
-
-// 남은 시간 카운트다운 표시
-function _setupCountdown(expiresAt) {
-  // 카운트다운 배지가 없으면 생성
-  let badge = document.getElementById('sessionCountdown');
-  if (!badge) {
-    badge = document.createElement('div');
-    badge.id = 'sessionCountdown';
-    badge.style.cssText = `
-      position:fixed;bottom:16px;right:16px;z-index:9998;
-      font-family:var(--mono);font-size:12px;
-      background:var(--surface);border:1px solid var(--border2);border-radius:10px;
-      padding:8px 14px;color:var(--text2);
-      backdrop-filter:blur(8px);transition:all 0.3s;
-      box-shadow:0 4px 16px rgba(0,0,0,0.3);
-    `;
-    document.body.appendChild(badge);
-  }
-
-  if (_countdownTimer) clearInterval(_countdownTimer);
-  _countdownTimer = setInterval(() => {
-    const left = new Date(expiresAt).getTime() - Date.now();
-    if (left <= 0) {
-      badge.innerHTML = '⏰ <span style="color:var(--red)">만료됨</span>';
-      clearInterval(_countdownTimer);
-      return;
-    }
-    const h = Math.floor(left / 3600000);
-    const m = Math.floor((left % 3600000) / 60000);
-    const s = Math.floor((left % 60000) / 1000);
-    const timeStr = h > 0 ? `${h}시간 ${m}분 ${s}초` : m > 0 ? `${m}분 ${s}초` : `${s}초`;
-    badge.innerHTML = `⏱ 남은 시간: <span style="color:${left < 60000 ? 'var(--red)' : 'var(--accent)'};font-weight:500">${timeStr}</span>`;
-
-    // 1분 이하일 때 깜빡임 효과
-    if (left < 60000) {
-      badge.style.borderColor = 'rgba(248,113,113,0.5)';
-      badge.style.animation = 'pulse-warn 1s infinite';
-    }
-  }, 1000);
-}
-
-// 주기적 서버 검증 (관리자 수동 비활성화/삭제 감지)
-function _startSessionPolling() {
-  if (_sessionPollTimer) clearInterval(_sessionPollTimer);
-  _sessionPollTimer = setInterval(async () => {
-    if (!_sessionToken || !sessionValid) {
-      clearInterval(_sessionPollTimer);
-      return;
-    }
-    try {
-      const res = await fetch('/api/links/check-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionToken: _sessionToken })
-      });
-      const data = await res.json();
-
-      if (!data.valid) {
-        const codeMsg = {
-          'LINK_EXPIRED': '링크의 유효 기간이 만료되었습니다.',
-          'LINK_DELETED': '링크가 삭제되었습니다.',
-          'LINK_INACTIVE': '관리자가 링크를 비활성화했습니다.',
-          'SESSION_EXPIRED': '세션이 만료되었습니다.',
-        };
-        _revokeSession(data.code || 'UNKNOWN', codeMsg[data.code] || data.error || '세션이 종료되었습니다.');
-      } else if (data.expiresAt) {
-        // 서버에서 받은 최신 만료시간으로 타이머 갱신
-        _setupExpiryTimer(data.expiresAt);
-      }
-    } catch (e) {
-      console.warn('세션 폴링 실패 (네트워크 오류):', e);
-    }
-  }, SESSION_POLL_INTERVAL);
-}
-
-// 즉시 권한 차단 실행
-function _revokeSession(code, message) {
-  if (!sessionValid) return; // 이미 차단됨
-  sessionValid = false;
-  _sessionToken = null;
-  sessionStorage.removeItem(SESSION_STORAGE_KEY);
-
-  // 모든 타이머 정리
-  if (_sessionPollTimer) clearInterval(_sessionPollTimer);
-  if (_sessionExpiryTimer) clearTimeout(_sessionExpiryTimer);
-  if (_countdownTimer) clearInterval(_countdownTimer);
-
-  // 카운트다운 배지 제거
-  const badge = document.getElementById('sessionCountdown');
-  if (badge) badge.remove();
-
-  // 잠금 오버레이 표시 (메시지 업데이트)
-  const overlay = document.getElementById('lockOverlay');
-  const codeIcons = {
-    'LINK_EXPIRED': '⏰',
-    'LINK_DELETED': '🗑️',
-    'LINK_INACTIVE': '⏸️',
-    'SESSION_EXPIRED': '🔒',
-  };
-  overlay.querySelector('.lock-icon').textContent = codeIcons[code] || '🔒';
-  overlay.querySelector('h2').textContent = code === 'LINK_EXPIRED' ? '링크가 만료되었습니다' :
-                                            code === 'LINK_DELETED' ? '링크가 삭제되었습니다' :
-                                            code === 'LINK_INACTIVE' ? '링크가 비활성화되었습니다' :
-                                            '세션이 종료되었습니다';
-  overlay.querySelector('p').innerHTML = message + '<br><br>계속 사용하시려면 관리자에게<br>새로운 링크를 요청해주세요.';
-  overlay.querySelector('.lock-badge').textContent = '접근 권한이 만료되었습니다';
-  overlay.classList.remove('hidden');
-
-  // 진행 중인 작업 알림
-  toast('🚫 접근 권한이 만료되어 세션이 종료되었습니다.');
-}
-
-function requireSession() {
-  if (!sessionValid) {
-    toast('🔒 인증된 링크를 통해 접속해야 AI 기능을 사용할 수 있습니다.');
-    return false;
-  }
-  return true;
-}
-
-// ── 세션 토큰 포함 API 요청 헤더 ──
-function apiHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'X-Session-Token': _sessionToken || '',
-  };
-}
-
 const imgs = [];
 let selF = [];
 let resultData = null;
@@ -940,6 +773,11 @@ let generatedImgDataUrl = null;
 let bgRemoveEnabled = false;
 let bgRemoveModel = null;
 let bgRemoveModelLoading = false;
+
+// AI 모델 이미지 생성
+let aiModelEnabled = false;
+let aiModelGender = 'female';
+let aiModelGeneratedThisSession = false; // 상세페이지당 1개 제한
 
 // ── 테마 전환 ─────────────────────────────────
 const root = document.documentElement;
@@ -1002,12 +840,17 @@ function toggleBgRemove() {
     loadBgRemoveModel();
   }
 
-  // 이미 업로드된 이미지가 있으면 배경 제거 다시 처리
+  // 이미 업로드된 이미지가 있으면 선택된 것만 배경 제거 처리
   if (bgRemoveEnabled && imgs.length > 0) {
-    processAllBgRemoval();
+    const hasSelected = imgs.some(im => im.bgSelected);
+    if (hasSelected) {
+      processSelectedBgRemoval();
+    } else {
+      processAllBgRemoval();
+    }
   } else if (!bgRemoveEnabled && imgs.length > 0) {
     // 토글 해제 시 원본으로 복원
-    imgs.forEach(im => { if (im.original) im.data = im.original; });
+    imgs.forEach(im => { if (im.original) im.data = im.original; im.bgProcessed = false; });
     renderThumbs();
   }
 }
@@ -1105,6 +948,38 @@ async function processAllBgRemoval() {
   }
 }
 
+// ── 선택된 이미지만 배경 제거 ──
+async function processSelectedBgRemoval() {
+  if (!bgRemoveEnabled) return;
+  if (bgRemoveModelLoading) {
+    await new Promise(resolve => {
+      const check = setInterval(() => { if (!bgRemoveModelLoading) { clearInterval(check); resolve(); } }, 300);
+    });
+  }
+  if (!bgRemoveModel) return;
+
+  for (let i = 0; i < imgs.length; i++) {
+    const im = imgs[i];
+    if (!im.bgSelected) continue;
+    if (im.bgProcessed) continue;
+
+    if (!im.original) im.original = im.data;
+    renderThumbs();
+    const thumbEl = document.getElementById('thumbGrid').children[i];
+    if (thumbEl) {
+      const overlay = document.createElement('div');
+      overlay.className = 'thumb-processing';
+      overlay.innerHTML = '<div class="mini-spinner"></div>';
+      thumbEl.appendChild(overlay);
+    }
+
+    const result = await removeBgFromDataUrl(im.original);
+    im.data = result;
+    im.bgProcessed = true;
+    renderThumbs();
+  }
+}
+
 // ── 업로드 ────────────────────────────────────
 document.getElementById('fi').onchange = e => handleFiles(e.target.files);
 
@@ -1137,6 +1012,7 @@ function clearSingle(thumbId, kind) {
 }
 setupSingleUpload('dzStore', 'fiStore', 'storeThumb', 'store');
 setupSingleUpload('dzTerms', 'fiTerms', 'termsThumb', 'terms');
+
 const dz = document.getElementById('dz');
 dz.onclick = () => document.getElementById('fi').click();
 dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag'); };
@@ -1199,15 +1075,58 @@ async function handleFiles(files) {
 
 function renderThumbs() {
   document.getElementById('thumbGrid').innerHTML = imgs.map((im,i) =>
-    `<div class="thumb" style="position:relative">
+    `<div class="thumb" style="position:relative" draggable="true"
+          ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event)" ondragenter="onDragEnter(event)"
+          ondragleave="onDragLeave(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd(event)">
       <img src="${im.data}">
       ${im.bgProcessed ? '<div class="thumb-done">✓</div>' : ''}
+      <div class="thumb-checkbox ${im.bgSelected ? 'checked' : ''}" onclick="event.stopPropagation();toggleBgSelect(${i})">✓</div>
       <button class="thumb-del" onclick="rmImg(${i})">✕</button>
     </div>`
   ).join('');
   document.getElementById('statusImgs').textContent = `사진 ${imgs.length}장`;
 }
 function rmImg(i) { imgs.splice(i,1); renderThumbs(); }
+
+// ── 이미지 드래그 순서 변경 ──
+let dragIdx = null;
+function onDragStart(e, i) { dragIdx = i; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function onDragEnter(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.thumb').forEach(t => t.classList.remove('drag-over')); }
+function onDrop(e, targetIdx) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  if (dragIdx === null || dragIdx === targetIdx) return;
+  const [moved] = imgs.splice(dragIdx, 1);
+  imgs.splice(targetIdx, 0, moved);
+  dragIdx = null;
+  renderThumbs();
+  toast('📷 이미지 순서가 변경되었습니다');
+}
+
+// ── 선택 이미지 배경 제거 ──
+function toggleBgSelect(i) {
+  imgs[i].bgSelected = !imgs[i].bgSelected;
+  renderThumbs();
+}
+
+// ── AI 모델 이미지 생성 토글 ──
+function toggleAiModel() {
+  aiModelEnabled = !aiModelEnabled;
+  document.getElementById('aiModelToggle').classList.toggle('on', aiModelEnabled);
+  document.getElementById('aiModelGenderRow').classList.toggle('show', aiModelEnabled);
+  if (aiModelEnabled) updateAiModelCount();
+}
+function setGender(btn) {
+  document.querySelectorAll('.gender-opt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  aiModelGender = btn.dataset.gender;
+}
+function updateAiModelCount() {
+  const el = document.getElementById('aiModelCount');
+  if (el) el.textContent = aiModelGeneratedThisSession ? '이번 생성에 사용됨' : '생성 가능';
+}
 
 // ── 칩 ───────────────────────────────────────
 document.querySelectorAll('#chips .chip').forEach(c => {
@@ -1254,7 +1173,6 @@ const loadSteps = [
 
 // ── 1. 상세페이지 생성 ─────────────────────────────────────
 document.getElementById('genBtn').onclick = async function() {
-  if (!requireSession()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const price = document.getElementById('price').value.trim();
@@ -1300,7 +1218,7 @@ document.getElementById('genBtn').onclick = async function() {
 
   try {
     const resp = await fetch('/api/generate', {
-      method:'POST', headers:apiHeaders(),
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model: 'gemini-2.5-flash',
         systemInstruction: { parts: [{ text: sys }] },
@@ -1348,11 +1266,44 @@ document.getElementById('genBtn').onclick = async function() {
     // 왼쪽 입력란의 상품명이 있으면 그대로 제목에 사용
     if (pname) parsed.product_name = pname;
 
+    // ── AI 모델 이미지 생성 (스위치 ON + 아직 미생성 시) ──
+    if (aiModelEnabled && !aiModelGeneratedThisSession) {
+      document.getElementById('loadMsg').textContent = 'AI 모델 이미지 생성 중...';
+      document.getElementById('loadSub').textContent = `${aiModelGender === 'male' ? '남성' : '여성'} 모델이 상품을 착용한 이미지를 생성합니다`;
+      try {
+        const modelResp = await fetch('/api/generate-model', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            productName: parsed.product_name || pname,
+            category: cat,
+            gender: aiModelGender,
+            productImageBase64: imgs.length > 0 ? imgs[0].data : null
+          })
+        });
+        if (modelResp.ok) {
+          const modelData = await modelResp.json();
+          if (modelData.image) {
+            imgs.push({ name: 'ai-model.png', data: modelData.image, original: modelData.image, bgProcessed: false });
+            renderThumbs();
+            aiModelGeneratedThisSession = true;
+            updateAiModelCount();
+            toast(`✅ AI 모델 이미지 생성 완료! (남은 횟수: ${modelData.remaining})`);
+          }
+        } else {
+          const errData = await modelResp.json().catch(() => ({}));
+          console.warn('AI 모델 이미지 생성 실패:', errData.error || modelResp.status);
+          toast(`⚠️ 모델 이미지 생성 실패: ${errData.error || '알 수 없는 오류'}`);
+        }
+      } catch (modelErr) {
+        console.warn('AI 모델 이미지 생성 에러:', modelErr);
+      }
+    }
+
     document.getElementById('loadMsg').textContent = '이미지 렌더링 중...';
     document.getElementById('loadSub').textContent = '상세페이지를 이미지로 변환 중';
 
     const renderResp = await fetch('/api/render', {
-      method:'POST', headers:apiHeaders(),
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         data: parsed,
         price: price,
@@ -1498,7 +1449,6 @@ async function fetchCoupangSuggest(seeds) {
 
 // ── 2. 상품명 최적화 생성 ───────────────────────
 async function runTitleGen() {
-  if (!requireSession()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const cat   = document.getElementById('cat').value;
@@ -1535,6 +1485,7 @@ async function runTitleGen() {
   document.getElementById('titleResult').innerHTML =
     '<div class="tool-empty">AI가 쿠팡 최적화 상품명을 생성 중입니다...</div>';
 
+  // ── 2-2. 규칙 기반 프롬프트 엔지니어링 ──
   const coupangRules = `
 [쿠팡 상품명 작성 규칙 — 반드시 준수]
 1) 길이: 공백 포함 50자 이내 (쿠팡 권장). 40~50자 사이가 이상적.
@@ -1542,11 +1493,11 @@ async function runTitleGen() {
    예) "락앤락 밀폐용기 직사각 1.2L 전자레인지 김치통 1개입"
 3) 핵심키워드(대표 검색어)는 반드시 앞쪽 10자 이내에 배치.
 4) 금지 사항:
-   - 특수문자/이모지/기호: ★ ♥ ♡ ! ? ~ # @ % &
+   - 특수문자/이모지/기호: ★ ♥ ♡ ! ? ~ # @ % & [대괄호 제외 불가시 사용 최소화]
    - 과장/최상급 표현: "최고", "최저가", "1위", "정품보장", "무조건", "100%"
-   - 동일 키워드 반복(2회 이상 금지), 동의어 나열 최소화
-   - 쉼표·슬래시 나열 금지 (공백으로만 구분)
-5) 반드시 포함 권장: 소재/색상/사이즈/수량/규격/용도/대상/호환기종 중 해당 항목
+   - 동일 키워드 반복(2회 이상 금지), 동의어 나열도 최소화
+   - 띄어쓰기 없는 붙여쓰기, 쉼표·슬래시 나열 금지 (공백으로만 구분)
+5) 반드시 포함 권장: 소재/색상/사이즈/수량/규격/용도/대상/호환기종 중 해당되는 것
 6) 검색 매칭을 위해 "실제 쿠팡 자동완성 인기 검색어"를 자연스럽게 1~3개 조합할 것
    (단, 관련 없는 키워드 남용은 어뷰징으로 금지)
 7) 각 상품명은 서로 다른 키워드 조합/전략을 사용해 중복되지 않게 작성.
@@ -1580,7 +1531,7 @@ ${coupangRules}
 
   try {
     const resp = await fetch('/api/generate', {
-      method:'POST', headers:apiHeaders(),
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model: 'gemini-2.5-flash',
         systemInstruction: { parts: [{ text: sys }] },
@@ -1676,9 +1627,8 @@ ${coupangRules}
   btn.disabled = false; btn.classList.remove('loading');
 }
 
-// ── 3. 쿠팡 태그 20개 생성 ──────────────────────
+// ── 3. 쿠팡 태그 20개 생성 (쿠팡 자동완성 기반) ────
 async function runTagGen() {
-  if (!requireSession()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const cat   = document.getElementById('cat').value;
@@ -1725,10 +1675,16 @@ ${coupangKwBlock}
 
 [쿠팡 태그 작성 규칙]
 1) 각 태그는 2~12자 이내, 한글 위주 (영문/숫자는 꼭 필요할 때만)
-2) 중복 금지, 의미 중복도 최소화
-3) 특수문자/이모지/쉼표/슬래시 금지 (태그 내부 공백 가능)
+2) 중복 금지, 의미 중복도 최소화 (예: "밀폐용기"와 "밀폐용기세트"는 허용, "밀폐용기"와 "밀폐통"은 하나만)
+3) 특수문자/이모지/공백·쉼표·슬래시 금지 (태그 내부 공백 가능, 태그끼리는 배열로 분리)
 4) 과장·최상급 표현 금지: "최고","1위","정품보장","무료배송","100%"
-5) 다양한 층위를 섞을 것: 카테고리어 / 브랜드·상품명 / 소재·색상·사이즈·수량 / 용도·상황 / 타깃 / 롱테일 조합
+5) 다양한 층위를 섞을 것:
+   - 핵심 카테고리어 (예: 밀폐용기, 이어폰)
+   - 브랜드/상품명
+   - 소재/색상/사이즈/수량
+   - 용도/상황 (예: 도시락, 캠핑용, 사무실용)
+   - 타깃 (예: 1인가구, 신혼, 자취생)
+   - 롱테일 조합 (예: 전자레인지밀폐용기)
 6) 쿠팡 자동완성 결과가 있으면 그중 관련 있는 것을 8개 이상 반드시 포함할 것.
 7) 정확히 20개.
 
@@ -1737,7 +1693,7 @@ ${coupangKwBlock}
 
   try {
     const resp = await fetch('/api/generate', {
-      method:'POST', headers:apiHeaders(),
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model: 'gemini-2.5-flash',
         systemInstruction: { parts: [{ text: sys }] },
@@ -1761,11 +1717,12 @@ ${coupangKwBlock}
       if (s0!==-1 && e0>s0) parsed = tryParse(cleanRaw.slice(s0,e0+1));
     }
     let tags = (parsed && Array.isArray(parsed.tags)) ? parsed.tags : [];
+    // fallback: "tag" 같은 문자열만이라도 뽑아내기
     if (tags.length === 0) {
       const strRe = /"((?:[^"\\]|\\.){1,20})"/g;
       tags = [...cleanRaw.matchAll(strRe)].map(m=>m[1]).filter(s=>s && s!=='tags' && !/^\s*$/.test(s));
     }
-    // 쿠팡 키워드로 보강
+    // 쿠팡 키워드로 보강: 20개 못 채우면 자동완성 결과로 채움
     if (tags.length < 20 && coupangKeywords.length) {
       const existing = new Set(tags.map(t=>t.replace(/\s/g,'').toLowerCase()));
       for (const kw of coupangKeywords) {
@@ -1777,6 +1734,7 @@ ${coupangKwBlock}
     tags = tags.slice(0,20);
     if (tags.length === 0) { console.error('태그 파싱 실패 — 원본:', raw); throw new Error('태그 파싱 실패. 다시 시도해주세요.'); }
 
+    // 쿠팡 자동완성 출처 태그는 하이라이트
     const kwSet = new Set(coupangKeywords.map(k=>k.replace(/\s/g,'').toLowerCase()));
     const tagCloud = tags.map(tag => {
       const isCoupang = kwSet.has(tag.replace(/\s/g,'').toLowerCase());
