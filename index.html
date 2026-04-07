@@ -547,6 +547,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div class="tb-badge">패션 · 의류 · 잡화</div>
+  <a href="/admin" id="adminBtn" class="tb-badge" style="display:none;text-decoration:none;color:var(--accent);border-color:var(--accent);cursor:pointer" title="링크 관리 어드민">🔐 링크관리</a>
 </div>
 
 <!-- IP 잠금 오버레이 -->
@@ -835,6 +836,7 @@ async function verifyPin() {
     if (resp.ok && data.success) {
       ipRecognized = true;
       document.getElementById('ipLockOverlay').style.display = 'none';
+      document.getElementById('adminBtn').style.display = '';
       toast('✅ 관리자 인증 완료!');
     } else {
       errEl.textContent = data.error || 'PIN이 올바르지 않습니다.';
