@@ -20,6 +20,9 @@
     },
     "api/ip-check.js": {
       "maxDuration": 10
+    },
+    "api/pin-verify.js": {
+      "maxDuration": 10
     }
   }
 }
