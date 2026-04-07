@@ -859,6 +859,10 @@ let ipRecognized = false;
     if (data.recognized) {
       ipRecognized = true;
       document.getElementById('ipLockOverlay').style.display = 'none';
+      // 관리자면 링크관리 버튼 표시
+      if (data.admin) {
+        document.getElementById('adminBtn').style.display = '';
+      }
       // 잔여 횟수 반영
       if (data.remaining !== undefined) {
         updateAiModelUsageUI(data.remaining, data.limit || 100);
