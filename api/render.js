@@ -288,8 +288,6 @@ export default async function handler(req, res) {
     }
     const tw = ctx.measureText(titleStr).width;
     const tx = (W - tw) / 2;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
-    ctx.strokeText(titleStr, tx, y+58);
     ctx.fillStyle = '#ffffff'; ctx.fillText(titleStr, tx, y+58);
     const su = d.subtitle || '';
     centerText(su, y+86, LGRAY, 13);
