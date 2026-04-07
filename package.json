@@ -6,7 +6,8 @@
     "build": "node setup-fonts.js"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.44"
+    "@napi-rs/canvas": "^0.1.44",
+    "@vercel/kv": "^2.0.0"
   },
   "engines": {
     "node": ">=18"

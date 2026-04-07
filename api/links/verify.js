@@ -96,12 +96,24 @@ export default async function handler(req, res) {
     };
     await store.set(`session:${sessionToken}`, JSON.stringify(sessionData), { ex: sessionTtl });
 
+    // ── IP 등록: 유효한 링크를 통해 접근한 IP를 기억 ──
+    const ipKey = `ip:${clientIp}`;
+    const existingIp = await store.get(ipKey);
+    if (!existingIp) {
+      await store.set(ipKey, JSON.stringify({
+        firstVisit: new Date().toISOString(),
+        linkToken: token,
+        registeredAt: new Date().toISOString(),
+      }));
+    }
+
     return res.status(200).json({
       success: true,
       sessionToken,
       title: link.title,
       remainingVisits: link.maxVisits > 0 ? link.maxVisits - link.currentVisits : null,
       expiresAt: link.expiresAt,
+      ipRegistered: true,
     });
 
   } catch (err) {
