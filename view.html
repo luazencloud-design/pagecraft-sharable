@@ -81,8 +81,18 @@ async function verify() {
         'EXPIRED':     ['⏰', '만료된 링크', '이 링크의 유효 기간이 지났습니다.'],
         'MAX_VISITS':  ['📊', '접근 횟수 초과', '이 링크의 최대 접근 횟수에 도달했습니다.'],
       };
-      const [icon, title, desc] = msgs[data.code] || ['❌', '접근 실패', data.error];
+      const [icon, title, desc] = msgs[data.code] || ['🔗', '유효하지 않은 링크', '이 링크는 존재하지 않거나 삭제되었습니다.'];
       show('error', icon, title, desc);
+      return;
+    }
+
+    // 봇 미리보기 또는 메신저 앱 내 브라우저 감지
+    if (data.preview) {
+      show('error', '💡', '링크를 브라우저에서 열어주세요',
+        '카카오톡, 슬랙 등 메신저 앱 내에서는 자동으로 접근할 수 없습니다.<br><br>' +
+        '<strong>해결 방법:</strong><br>' +
+        '① 우측 상단 <strong>⋮ 메뉴</strong> → <strong>"브라우저에서 열기"</strong><br>' +
+        '② 또는 링크를 <strong>복사</strong>한 뒤 Chrome, Safari 등<br>&nbsp;&nbsp;&nbsp;브라우저 주소창에 직접 붙여넣기');
       return;
     }
 

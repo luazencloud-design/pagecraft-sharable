@@ -38,20 +38,34 @@ export default async function handler(req, res) {
 
     const link = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
-    // ── 기본 검증 ──
-    if (!link.active) return res.status(403).json({ error: '비활성화된 링크입니다.', code: 'INACTIVE' });
-    if (link.expiresAt && new Date(link.expiresAt) < new Date())
-      return res.status(403).json({ error: '만료된 링크입니다.', code: 'EXPIRED' });
-    if (link.maxVisits > 0 && link.currentVisits >= link.maxVisits)
-      return res.status(403).json({ error: '최대 접근 횟수를 초과했습니다.', code: 'MAX_VISITS' });
-
-    // ── 봇/프리페치 요청은 카운트하지 않고 차단 ──
+    // ── 봇/프리페치 요청은 조용히 무시 (에러 메시지 노출 없이) ──
     if (isBotOrPrefetch(req)) {
-      return res.status(403).json({ error: '자동화된 접근은 허용되지 않습니다.', code: 'BOT_BLOCKED' });
+      return res.status(200).json({ success: false, preview: true });
+    }
+
+    // ── 기본 검증 ──
+    // 만료/비활성/횟수초과 시: 기존에 등록된 IP면 실제 사유 표시,
+    // 미등록 IP면 "유효하지 않은 링크"로 위장 (보안)
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+      || req.headers['x-real-ip'] || 'unknown';
+    const existingIp = await store.get(`ip:${clientIp}`);
+
+    const linkExpired = link.expiresAt && new Date(link.expiresAt) < new Date();
+    const linkInactive = !link.active;
+    const linkMaxed = link.maxVisits > 0 && link.currentVisits >= link.maxVisits;
+
+    if (linkExpired || linkInactive || linkMaxed) {
+      // 이전에 등록된 IP → 실제 사유 알려줌
+      if (existingIp) {
+        if (linkExpired) return res.status(403).json({ error: '만료된 링크입니다.', code: 'EXPIRED' });
+        if (linkInactive) return res.status(403).json({ error: '비활성화된 링크입니다.', code: 'INACTIVE' });
+        return res.status(403).json({ error: '최대 접근 횟수를 초과했습니다.', code: 'MAX_VISITS' });
+      }
+      // 미등록 IP → 링크 존재 자체를 숨김
+      return res.status(404).json({ error: '유효하지 않은 링크입니다.', code: 'NOT_FOUND' });
     }
 
     // ── 방문 유예기간: 같은 IP에서 5분 이내 재방문이면 카운트 안 함 ──
-    const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown';
     const graceKey = `grace:${token}:${clientIp}`;
     const existingGrace = await store.get(graceKey);
     const shouldCountVisit = !existingGrace;
