@@ -850,8 +850,40 @@ async function verifyPin() {
   }
 }
 
-// ── IP 인증 체크 ──
+// ── IP 인증 + 만료 관리 ──
 let ipRecognized = false;
+let _linkExpiresAt = null;
+
+function lockExpired() {
+  ipRecognized = false;
+  const overlay = document.getElementById('ipLockOverlay');
+  overlay.querySelector('h2').textContent = '사용 시간이 만료되었습니다';
+  overlay.querySelector('p').innerHTML = '관리자가 설정한 사용 시간이 종료되었습니다.<br>계속 사용하시려면 새로운 링크를 요청해주세요.';
+  overlay.querySelector('#pinInput').style.display = 'none';
+  overlay.querySelector('#pinInput').nextElementSibling.style.display = 'none';
+  overlay.style.display = 'flex';
+  // 모든 기능 버튼 비활성화
+  document.getElementById('genBtn').disabled = true;
+  const aiBtn = document.getElementById('aiModelGenBtn');
+  if (aiBtn) aiBtn.disabled = true;
+  const titleBtn = document.getElementById('titleBtn');
+  if (titleBtn) titleBtn.disabled = true;
+  const tagsBtn = document.getElementById('tagsBtn');
+  if (tagsBtn) tagsBtn.disabled = true;
+  toast('⏰ 사용 시간이 만료되었습니다.');
+}
+
+function requireAccess() {
+  if (!ipRecognized) {
+    toast('🔒 접근 권한이 없습니다.');
+    return false;
+  }
+  if (_linkExpiresAt && Date.now() >= _linkExpiresAt) {
+    lockExpired();
+    return false;
+  }
+  return true;
+}
 
 (async function checkIpAccess() {
   try {
@@ -870,16 +902,10 @@ let ipRecognized = false;
       }
       // ── 만료 자동 감지 타이머 ──
       if (data.expiresAt && !data.admin) {
-        const expiresMs = new Date(data.expiresAt).getTime() - Date.now();
+        _linkExpiresAt = new Date(data.expiresAt).getTime();
+        const expiresMs = _linkExpiresAt - Date.now();
         if (expiresMs > 0) {
-          setTimeout(() => {
-            ipRecognized = false;
-            const overlay = document.getElementById('ipLockOverlay');
-            overlay.querySelector('h2').textContent = '사용 시간이 만료되었습니다';
-            overlay.querySelector('p').innerHTML = '관리자가 설정한 사용 시간이 종료되었습니다.<br>계속 사용하시려면 새로운 링크를 요청해주세요.';
-            overlay.style.display = 'flex';
-            toast('⏰ 사용 시간이 만료되었습니다.');
-          }, expiresMs);
+          setTimeout(lockExpired, expiresMs);
         }
       }
     } else if (data.expired) {
@@ -1276,6 +1302,7 @@ function updateAiModelUsageUI(remaining, limit) {
   if (remaining <= 0) document.getElementById('aiModelGenBtn').disabled = true;
 }
 async function generateModelImage() {
+  if (!requireAccess()) return;
   if (aiModelGeneratedThisSession) { toast('⚠️ 이번 상세페이지에서 이미 모델 이미지를 생성했습니다.'); return; }
   const pname = document.getElementById('pname').value.trim();
   const cat = document.getElementById('cat').value;
@@ -1351,6 +1378,7 @@ const loadSteps = [
 
 // ── 1. 상세페이지 생성 ─────────────────────────────────────
 document.getElementById('genBtn').onclick = async function() {
+  if (!requireAccess()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const price = document.getElementById('price').value.trim();
@@ -1628,6 +1656,7 @@ async function fetchCoupangSuggest(seeds) {
 
 // ── 2. 상품명 최적화 생성 ───────────────────────
 async function runTitleGen() {
+  if (!requireAccess()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const cat   = document.getElementById('cat').value;
@@ -1808,6 +1837,7 @@ ${coupangRules}
 
 // ── 3. 쿠팡 태그 20개 생성 (쿠팡 자동완성 기반) ────
 async function runTagGen() {
+  if (!requireAccess()) return;
   const brand = document.getElementById('brand').value.trim();
   const pname = document.getElementById('pname').value.trim();
   const cat   = document.getElementById('cat').value;
