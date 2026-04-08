@@ -81,10 +81,13 @@ async function verify() {
         'EXPIRED':     ['⏰', '만료된 링크', '이 링크의 유효 기간이 지났습니다.'],
         'MAX_VISITS':  ['📊', '접근 횟수 초과', '이 링크의 최대 접근 횟수에 도달했습니다.'],
       };
-      const [icon, title, desc] = msgs[data.code] || ['❌', '접근 실패', data.error];
+      const [icon, title, desc] = msgs[data.code] || ['🔗', '유효하지 않은 링크', '이 링크는 존재하지 않거나 삭제되었습니다.'];
       show('error', icon, title, desc);
       return;
     }
+
+    // 봇 미리보기 응답 (조용히 무시)
+    if (data.preview) return;
 
     // ✅ 성공 → 세션 토큰과 함께 메인 페이지로 즉시 이동
     show('ok', '✅', '인증 완료!', '페이지로 이동합니다...');
