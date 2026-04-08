@@ -1646,7 +1646,8 @@ document.getElementById('genBtn').onclick = async function() {
     if (renderResp.ok) {
       const blob = await renderResp.blob();
       generatedImgDataUrl = URL.createObjectURL(blob);
-      document.getElementById('previewImg').src = generatedImgDataUrl;
+      const pImg = document.getElementById('previewImg');
+      if (pImg) pImg.src = generatedImgDataUrl;
       document.getElementById('resultPreview').classList.add('show');
     } else {
       showTextResult(parsed, price);
@@ -1676,7 +1677,8 @@ function showTextResult(d, priceInput) {
   const specs = (d.specs||[]).map(s=>`<tr><td style="padding:8px;color:#888;font-size:12px;font-weight:600;border-bottom:1px solid #222">${s.key}</td><td style="padding:8px;color:#ccc;font-size:12px;border-bottom:1px solid #222">${s.value}</td></tr>`).join('');
   const kws = (d.keywords||[]).map(k=>`<span style="display:inline-block;padding:4px 10px;border:1px solid #333;border-radius:20px;font-size:11px;color:#888;margin:3px">#${k}</span>`).join('');
   const divImg = (idx) => imgs[idx] ? `<img src="${imgs[idx].data}" style="width:100%;display:block;margin:0">` : '';
-  const paras = (d.description||'').split('\n').filter(Boolean);
+  const descStr = Array.isArray(d.description) ? d.description.join('\n') : String(d.description||'');
+  const paras = descStr.split('\n').filter(Boolean);
   const para1 = paras.length > 0 ? paras[0] : '';
   const para2 = paras.length > 1 ? paras.slice(1).join('<br>') : '';
 
@@ -1691,7 +1693,7 @@ function showTextResult(d, priceInput) {
     ${imgs[0] ? `<img src="${imgs[0].data}" style="width:100%;display:block">` : ''}
     <div style="padding:24px">
       <div style="font-size:10px;letter-spacing:2px;color:#e8c97a;margin-bottom:8px">메인 카피</div>
-      <div style="font-size:15px;font-weight:600;line-height:1.6">${(d.main_copy||'').replace(/\n/g,'<br>')}</div>
+      <div style="font-size:15px;font-weight:600;line-height:1.6">${String(d.main_copy||'').replace(/\n/g,'<br>')}</div>
     </div>
     ${divImg(3)}
     ${divImg(7)}
@@ -1734,11 +1736,11 @@ function renderPanel(d) {
         <span class="copy-block-title">${b.title}</span>
         <button class="copy-btn" onclick="cp(this,'${esc(b.body)}')">📋 복사</button>
       </div>
-      <div class="copy-block-body">${(b.body||'').replace(/\n/g,'<br>')}</div>
+      <div class="copy-block-body">${String(b.body||'').replace(/\n/g,'<br>')}</div>
     </div>`).join('');
 }
 
-function esc(s){ return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
+function esc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
 function cp(btn, text) {
   navigator.clipboard.writeText(text.replace(/\\n/g,'\n'));
   btn.textContent='✓ 복사됨'; btn.classList.add('ok');
