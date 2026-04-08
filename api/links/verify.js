@@ -112,7 +112,6 @@ export default async function handler(req, res) {
 
     // ── IP 등록: 유효한 링크를 통해 접근한 IP를 기억 ──
     const ipKey = `ip:${clientIp}`;
-    const existingIp = await store.get(ipKey);
     if (!existingIp) {
       await store.set(ipKey, JSON.stringify({
         firstVisit: new Date().toISOString(),
