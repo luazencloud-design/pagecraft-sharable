@@ -134,14 +134,29 @@ export default async function handler(req, res) {
     });
   }
 
-  // ── 링크 유효기간 만료 확인 ──
-  if (info.ipData.expiresAt) {
-    if (new Date(info.ipData.expiresAt) < new Date()) {
-      return res.status(403).json({
-        error: '링크의 유효 기간이 만료되었습니다.',
-        code: 'LINK_EXPIRED'
-      });
-    }
+  // ── 만료 확인 → IP 즉시 삭제 ──
+  if (info.ipData.expiresAt && new Date(info.ipData.expiresAt) < new Date()) {
+    await store.del(`ip:${clientIp}`);
+    await store.del(`ip-usage:${clientIp}`);
+    return res.status(403).json({ error: '링크의 유효 기간이 만료되었습니다.', code: 'LINK_EXPIRED' });
+  }
+
+  // ── 연결된 링크 상태 확인 ──
+  const linkRaw = await store.get(`link:${info.ipData.linkToken}`);
+  if (!linkRaw) {
+    // 링크 삭제됨 → IP도 삭제
+    await store.del(`ip:${clientIp}`);
+    await store.del(`ip-usage:${clientIp}`);
+    return res.status(403).json({ error: '링크가 삭제되었습니다.', code: 'LINK_DELETED' });
+  }
+  const linkedLink = typeof linkRaw === 'string' ? JSON.parse(linkRaw) : linkRaw;
+  if (!linkedLink.active) {
+    return res.status(403).json({ error: '링크가 비활성화되었습니다.', code: 'LINK_INACTIVE' });
+  }
+  if (linkedLink.expiresAt && new Date(linkedLink.expiresAt) < new Date()) {
+    await store.del(`ip:${clientIp}`);
+    await store.del(`ip-usage:${clientIp}`);
+    return res.status(403).json({ error: '링크의 유효 기간이 만료되었습니다.', code: 'LINK_EXPIRED' });
   }
 
   // ── 한도 확인 ──

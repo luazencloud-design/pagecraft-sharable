@@ -1,7 +1,6 @@
 import { getStore } from './links/_store.js';
 
 // ── IP 인식 확인 API ──
-// GET /api/ip-check → 이 IP가 등록되어 있는지 + AI 모델 이미지 잔여 횟수 반환
 
 const CYCLE_DAYS = 30;
 const CYCLE_MS = CYCLE_DAYS * 24 * 60 * 60 * 1000;
@@ -28,7 +27,7 @@ export default async function handler(req, res) {
     || 'unknown';
 
   if (clientIp === 'unknown') {
-    return res.status(200).json({ recognized: false, error: 'IP를 확인할 수 없습니다.' });
+    return res.status(200).json({ recognized: false });
   }
 
   try {
@@ -41,16 +40,38 @@ export default async function handler(req, res) {
 
     const ipData = typeof ipRaw === 'string' ? JSON.parse(ipRaw) : ipRaw;
 
-    // 링크 유효기간 만료 확인 (관리자 PIN 인증은 만료 없음)
-    if (ipData.expiresAt) {
-      if (new Date(ipData.expiresAt) < new Date()) {
-        return res.status(200).json({ recognized: false, expired: true });
-      }
+    // ── 1. 만료 확인 → 만료되면 IP 즉시 삭제 ──
+    if (ipData.expiresAt && new Date(ipData.expiresAt) < new Date()) {
+      await store.del(`ip:${clientIp}`);
+      await store.del(`ip-usage:${clientIp}`);
+      return res.status(200).json({ recognized: false, expired: true });
     }
 
-    const { currentCycleStart, currentCycleEnd } = calcCycle(ipData.firstVisit);
+    // ── 2. 연결된 링크 존재 여부 확인 ──
+    const linkRaw = await store.get(`link:${ipData.linkToken}`);
+    if (!linkRaw) {
+      // 링크가 삭제됨 → 고아 IP → 삭제
+      await store.del(`ip:${clientIp}`);
+      await store.del(`ip-usage:${clientIp}`);
+      return res.status(200).json({ recognized: false });
+    }
 
-    // 사용량 조회
+    const link = typeof linkRaw === 'string' ? JSON.parse(linkRaw) : linkRaw;
+
+    // ── 3. 링크 비활성화 확인 → IP는 유지하되 접근 차단 ──
+    if (!link.active) {
+      return res.status(200).json({ recognized: false, inactive: true });
+    }
+
+    // ── 4. 링크 자체의 만료 확인 (관리자가 만료일을 변경했을 수 있음) ──
+    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+      await store.del(`ip:${clientIp}`);
+      await store.del(`ip-usage:${clientIp}`);
+      return res.status(200).json({ recognized: false, expired: true });
+    }
+
+    // ── 5. 사용량 조회 ──
+    const { currentCycleStart, currentCycleEnd } = calcCycle(ipData.firstVisit);
     const usageRaw = await store.get(`ip-usage:${clientIp}`);
     let usage = usageRaw ? (typeof usageRaw === 'string' ? JSON.parse(usageRaw) : usageRaw) : null;
 
@@ -58,7 +79,6 @@ export default async function handler(req, res) {
     if (usage && usage.cycleStart === currentCycleStart) {
       used = usage.count;
     }
-    // cycleStart가 다르면 이전 주기 데이터 → used = 0
 
     return res.status(200).json({
       recognized: true,
@@ -67,7 +87,7 @@ export default async function handler(req, res) {
       limit: LIMIT,
       cycleResetAt: new Date(currentCycleEnd).toISOString(),
       firstVisit: ipData.firstVisit,
-      expiresAt: ipData.expiresAt || null,
+      expiresAt: ipData.expiresAt || link.expiresAt || null,
     });
 
   } catch (err) {
