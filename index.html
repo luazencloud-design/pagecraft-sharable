@@ -980,6 +980,24 @@ function requireAccess() {
   return true;
 }
 
+function unlockApp(data) {
+  ipRecognized = true;
+  document.getElementById('ipLockOverlay').classList.add('hidden');
+  document.getElementById('genBtn').disabled = false;
+  ['aiModelGenBtn','titleBtn','tagsBtn'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.disabled = false;
+  });
+  if (data.remaining !== undefined) {
+    updateAiModelUsageUI(data.remaining, data.limit || 100);
+  }
+  if (data.expiresAt) {
+    _linkExpiresAt = new Date(data.expiresAt).getTime();
+    setupExpiryTimer(data.expiresAt);
+    setupCountdown(data.expiresAt);
+  }
+  if (_sessionToken) startPolling();
+}
+
 // ── 초기 인증 체크 ──
 (async function checkIpAccess() {
   // 1) URL ?s= 세션 토큰 처리 (view.html에서 리다이렉트)
@@ -996,34 +1014,27 @@ function requireAccess() {
     const resp = await fetch('/api/ip-check');
     const data = await resp.json();
     if (data.recognized) {
-      ipRecognized = true;
-      document.getElementById('ipLockOverlay').classList.add('hidden');
-
-      // 모든 기능 버튼 활성화
-      document.getElementById('genBtn').disabled = false;
-      ['aiModelGenBtn','titleBtn','tagsBtn'].forEach(id => {
-        const b = document.getElementById(id); if (b) b.disabled = false;
-      });
-
-      if (data.remaining !== undefined) {
-        updateAiModelUsageUI(data.remaining, data.limit || 100);
-      }
-
-      // 만료 타이머 + 카운트다운
-      if (data.expiresAt && !data.admin) {
-        _linkExpiresAt = new Date(data.expiresAt).getTime();
-        setupExpiryTimer(data.expiresAt);
-        setupCountdown(data.expiresAt);
-      }
-
-      // 세션 폴링 시작
-      if (_sessionToken) {
-        startPolling();
-      }
+      unlockApp(data);
     } else if (data.expired) {
       const overlay = document.getElementById('ipLockOverlay');
       overlay.querySelector('h2').textContent = '링크가 만료되었습니다';
       overlay.querySelector('p').innerHTML = '이 링크의 유효 기간이 지났습니다.<br>관리자에게 새로운 링크를 요청해주세요.';
+    } else if (_sessionToken) {
+      // IP가 아직 인식 안 됐지만 세션 토큰이 있으면 세션으로 검증 시도
+      try {
+        const sRes = await fetch('/api/links/check-session', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionToken: _sessionToken })
+        });
+        const sData = await sRes.json();
+        if (sData.valid) {
+          // 세션은 유효 → IP 체크 재시도 (KV 전파 대기)
+          await new Promise(r => setTimeout(r, 500));
+          const retry = await fetch('/api/ip-check');
+          const retryData = await retry.json();
+          if (retryData.recognized) unlockApp(retryData);
+        }
+      } catch(e) { /* 무시 */ }
     }
   } catch (e) {
     console.warn('IP 확인 실패:', e);

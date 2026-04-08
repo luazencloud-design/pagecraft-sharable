@@ -96,9 +96,9 @@ async function verify() {
       return;
     }
 
-    // ✅ 성공 → 세션 토큰과 함께 메인 페이지로 즉시 이동
+    // ✅ 성공 → 세션 토큰과 함께 메인 페이지로 이동
     show('ok', '✅', '인증 완료!', '페이지로 이동합니다...');
-    window.location.href = '/?s=' + data.sessionToken;
+    setTimeout(() => { window.location.href = '/?s=' + data.sessionToken; }, 800);
 
   } catch (err) {
     show('error', '⚠️', '서버 오류', '잠시 후 다시 시도해주세요.');
