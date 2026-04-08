@@ -716,7 +716,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
   <div class="divider"></div>
   <div class="gen-wrap">
-    <button class="gen-btn" id="genBtn">
+    <button class="gen-btn" id="genBtn" disabled>
       <div class="gen-spinner"></div>
       <span class="gen-txt">✦ AI 상세페이지 생성</span>
     </button>
@@ -839,6 +839,11 @@ async function verifyPin() {
       ipRecognized = true;
       document.getElementById('ipLockOverlay').style.display = 'none';
       document.getElementById('adminBtn').style.display = '';
+      // 모든 기능 버튼 활성화
+      document.getElementById('genBtn').disabled = false;
+      ['aiModelGenBtn','titleBtn','tagsBtn'].forEach(id => {
+        const b = document.getElementById(id); if (b) b.disabled = false;
+      });
       toast('✅ 관리자 인증 완료!');
     } else {
       errEl.textContent = data.error || 'PIN이 올바르지 않습니다.';
@@ -1012,6 +1017,12 @@ function requireAccess() {
     if (data.recognized) {
       ipRecognized = true;
       document.getElementById('ipLockOverlay').style.display = 'none';
+
+      // 모든 기능 버튼 활성화
+      document.getElementById('genBtn').disabled = false;
+      ['aiModelGenBtn','titleBtn','tagsBtn'].forEach(id => {
+        const b = document.getElementById(id); if (b) b.disabled = false;
+      });
 
       if (data.admin) {
         document.getElementById('adminBtn').style.display = '';
