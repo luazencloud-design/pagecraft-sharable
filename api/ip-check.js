@@ -68,6 +68,7 @@ export default async function handler(req, res) {
       limit: LIMIT,
       cycleResetAt: new Date(currentCycleEnd).toISOString(),
       firstVisit: ipData.firstVisit,
+      expiresAt: ipData.expiresAt || null,
     });
 
   } catch (err) {
