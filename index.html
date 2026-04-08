@@ -622,6 +622,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span id="aiModelUsageText">0/100 사용</span>
       <div class="aimodel-usage-bar"><div class="aimodel-usage-fill" id="aiModelUsageFill" style="width:0%"></div></div>
     </div>
+    <p style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:2px">상품 사진과 정보가 많을수록 더 정확한 모델 사진이 생성됩니다.</p>
   </div>
 
   <div id="thumbGrid" class="thumb-grid"></div>
@@ -867,6 +868,11 @@ let ipRecognized = false;
       if (data.remaining !== undefined) {
         updateAiModelUsageUI(data.remaining, data.limit || 100);
       }
+    } else if (data.expired) {
+      // 링크 유효기간 만료 → 잠금 오버레이에 만료 메시지
+      const overlay = document.getElementById('ipLockOverlay');
+      overlay.querySelector('h2').textContent = '링크가 만료되었습니다';
+      overlay.querySelector('p').innerHTML = '이 링크의 유효 기간이 지났습니다.<br>관리자에게 새로운 링크를 요청해주세요.';
     }
     // recognized === false → 오버레이 유지
   } catch (e) {
