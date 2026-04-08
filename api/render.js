@@ -212,7 +212,7 @@ export default async function handler(req, res) {
 
     const descH1 = para1 ? descH : 0;
     // 이미지+설명 쌍의 높이 계산
-    const EXTRA_DESC_H = 80; // 이미지 아래 설명 1줄 높이
+    const EXTRA_DESC_H = 140; // 이미지 아래 설명 1줄 높이 (위아래 여백 포함)
     let extraSectionH = 0;
     for (const ed of extraDescLines) {
       extraSectionH += DIVIDER_PHOTO_H + EXTRA_DESC_H;
@@ -388,7 +388,7 @@ export default async function handler(req, res) {
       const ed = extraDescLines.find(e => e.imgIdx === imgIdx);
       if (ed) {
         fillRect(0, y, W, EXTRA_DESC_H, IVORY);
-        wrapText(ed.text, 60, y+28, W-120, 18, BLACK, 8, true, true);
+        wrapText(ed.text, 60, y+50, W-120, 18, BLACK, 8, true, true);
         y += EXTRA_DESC_H;
       }
     }
