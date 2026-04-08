@@ -361,7 +361,6 @@ export default async function handler(req, res) {
         }
       }
       ctx.fillText(ptText, cx, px+64);
-      if (pts[i]) wrapText(pts[i], cx, px+82, colW-10, 11, GRAY, 6);
     }
     y += ptH;
 
