@@ -1038,8 +1038,7 @@ function requireAccess() {
     }
   } catch (e) {
     console.warn('IP 확인 실패:', e);
-    ipRecognized = true;
-    document.getElementById('ipLockOverlay').style.display = 'none';
+    // 서버 연결 실패 시에도 차단 유지
   }
 })();
 
