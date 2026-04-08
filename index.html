@@ -533,6 +533,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .img-preview-modal img{max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.5)}
 .img-preview-close{position:fixed;top:20px;right:24px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:10001;display:flex;align-items:center;justify-content:center}
 .img-preview-close:hover{background:rgba(255,255,255,0.3)}
+@keyframes pulse-warn{0%,100%{opacity:1}50%{opacity:0.5}}
 </style>
 </head>
 <body>
@@ -850,27 +851,135 @@ async function verifyPin() {
   }
 }
 
-// ── IP 인증 + 만료 관리 ──
+// ── IP 인증 + 세션 관리 + 실시간 만료 감시 ──
 let ipRecognized = false;
 let _linkExpiresAt = null;
+let _sessionToken = null;
+let _pollTimer = null;
+let _expiryTimer = null;
+let _countdownTimer = null;
 
-function lockExpired() {
+const POLL_INTERVAL = 15000; // 15초마다 서버 검증
+const TIMER_SAFE_MAX = 24 * 60 * 60 * 1000; // setTimeout 32비트 한계 우회 (24시간)
+const SESSION_KEY = 'pagecraft_session';
+
+// ── 권한 차단 실행 ──
+function revokeAccess(code, message) {
+  if (!ipRecognized) return;
   ipRecognized = false;
-  const overlay = document.getElementById('ipLockOverlay');
-  overlay.querySelector('h2').textContent = '사용 시간이 만료되었습니다';
-  overlay.querySelector('p').innerHTML = '관리자가 설정한 사용 시간이 종료되었습니다.<br>계속 사용하시려면 새로운 링크를 요청해주세요.';
-  overlay.querySelector('#pinInput').style.display = 'none';
-  overlay.querySelector('#pinInput').nextElementSibling.style.display = 'none';
-  overlay.style.display = 'flex';
+  _sessionToken = null;
+  sessionStorage.removeItem(SESSION_KEY);
+
+  // 모든 타이머 정리
+  if (_pollTimer) clearInterval(_pollTimer);
+  if (_expiryTimer) clearTimeout(_expiryTimer);
+  if (_countdownTimer) clearInterval(_countdownTimer);
+
+  // 카운트다운 배지 제거
+  const badge = document.getElementById('sessionCountdown');
+  if (badge) badge.remove();
+
   // 모든 기능 버튼 비활성화
   document.getElementById('genBtn').disabled = true;
-  const aiBtn = document.getElementById('aiModelGenBtn');
-  if (aiBtn) aiBtn.disabled = true;
-  const titleBtn = document.getElementById('titleBtn');
-  if (titleBtn) titleBtn.disabled = true;
-  const tagsBtn = document.getElementById('tagsBtn');
-  if (tagsBtn) tagsBtn.disabled = true;
-  toast('⏰ 사용 시간이 만료되었습니다.');
+  ['aiModelGenBtn','titleBtn','tagsBtn'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.disabled = true;
+  });
+
+  // 잠금 오버레이 표시
+  const overlay = document.getElementById('ipLockOverlay');
+  const icons = { 'LINK_EXPIRED':'⏰', 'LINK_DELETED':'🗑️', 'LINK_INACTIVE':'⏸️', 'SESSION_EXPIRED':'🔒' };
+  const titles = { 'LINK_EXPIRED':'사용 시간이 만료되었습니다', 'LINK_DELETED':'링크가 삭제되었습니다', 'LINK_INACTIVE':'링크가 비활성화되었습니다', 'SESSION_EXPIRED':'세션이 종료되었습니다' };
+
+  const icon = overlay.querySelector('div[style*="font-size:48px"]');
+  if (icon) icon.textContent = icons[code] || '🔒';
+  overlay.querySelector('h2').textContent = titles[code] || '접근이 차단되었습니다';
+  overlay.querySelector('p').innerHTML = message + '<br><br>계속 사용하시려면 관리자에게<br>새로운 링크를 요청해주세요.';
+  // PIN 입력 숨기기
+  const pinInput = document.getElementById('pinInput');
+  if (pinInput) { pinInput.style.display = 'none'; pinInput.nextElementSibling.style.display = 'none'; }
+  overlay.style.display = 'flex';
+
+  toast('🚫 접근 권한이 만료되어 세션이 종료되었습니다.');
+}
+
+// ── 만료 타이머 (24일 한계 재귀 우회) ──
+function setupExpiryTimer(expiresAt) {
+  if (_expiryTimer) clearTimeout(_expiryTimer);
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  if (remaining <= 0) {
+    revokeAccess('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
+    return;
+  }
+  const delay = Math.min(remaining, TIMER_SAFE_MAX);
+  _expiryTimer = setTimeout(() => setupExpiryTimer(expiresAt), delay);
+}
+
+// ── 카운트다운 배지 (우측 하단 남은 시간 실시간 표시) ──
+function setupCountdown(expiresAt) {
+  let badge = document.getElementById('sessionCountdown');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'sessionCountdown';
+    badge.style.cssText = `
+      position:fixed;bottom:36px;right:16px;z-index:9998;
+      font-family:var(--mono);font-size:12px;
+      background:var(--surface);border:1px solid var(--border2);border-radius:10px;
+      padding:8px 14px;color:var(--text2);
+      backdrop-filter:blur(8px);transition:all 0.3s;
+      box-shadow:0 4px 16px rgba(0,0,0,0.3);
+    `;
+    document.body.appendChild(badge);
+  }
+
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  _countdownTimer = setInterval(() => {
+    const left = new Date(expiresAt).getTime() - Date.now();
+    if (left <= 0) {
+      badge.innerHTML = '⏰ <span style="color:var(--red)">만료됨</span>';
+      clearInterval(_countdownTimer);
+      return;
+    }
+    const h = Math.floor(left / 3600000);
+    const m = Math.floor((left % 3600000) / 60000);
+    const s = Math.floor((left % 60000) / 1000);
+    const timeStr = h > 0 ? `${h}시간 ${m}분 ${s}초` : m > 0 ? `${m}분 ${s}초` : `${s}초`;
+    badge.innerHTML = `⏱ 남은 시간: <span style="color:${left < 60000 ? 'var(--red)' : 'var(--accent)'};font-weight:500">${timeStr}</span>`;
+    if (left < 60000) {
+      badge.style.borderColor = 'rgba(248,113,113,0.5)';
+      badge.style.animation = 'pulse-warn 1s infinite';
+    }
+  }, 1000);
+}
+
+// ── 15초 서버 폴링 (관리자 수동 삭제/비활성화 즉시 감지) ──
+function startPolling() {
+  if (_pollTimer) clearInterval(_pollTimer);
+  if (!_sessionToken) return;
+
+  _pollTimer = setInterval(async () => {
+    if (!_sessionToken || !ipRecognized) { clearInterval(_pollTimer); return; }
+    try {
+      const res = await fetch('/api/links/check-session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionToken: _sessionToken })
+      });
+      const data = await res.json();
+
+      if (!data.valid) {
+        const msgs = {
+          'LINK_EXPIRED': '링크의 유효 기간이 만료되었습니다.',
+          'LINK_DELETED': '링크가 삭제되었습니다.',
+          'LINK_INACTIVE': '관리자가 링크를 비활성화했습니다.',
+          'SESSION_EXPIRED': '세션이 만료되었습니다.',
+        };
+        revokeAccess(data.code || 'SESSION_EXPIRED', msgs[data.code] || data.error || '세션이 종료되었습니다.');
+      } else if (data.expiresAt) {
+        setupExpiryTimer(data.expiresAt);
+      }
+    } catch (e) {
+      console.warn('세션 폴링 실패:', e);
+    }
+  }, POLL_INTERVAL);
 }
 
 function requireAccess() {
@@ -879,45 +988,56 @@ function requireAccess() {
     return false;
   }
   if (_linkExpiresAt && Date.now() >= _linkExpiresAt) {
-    lockExpired();
+    revokeAccess('LINK_EXPIRED', '링크의 유효 기간이 만료되었습니다.');
     return false;
   }
   return true;
 }
 
+// ── 초기 인증 체크 ──
 (async function checkIpAccess() {
+  // 1) URL ?s= 세션 토큰 처리 (view.html에서 리다이렉트)
+  const params = new URLSearchParams(window.location.search);
+  const sParam = params.get('s') || sessionStorage.getItem(SESSION_KEY);
+  if (sParam) {
+    _sessionToken = sParam;
+    sessionStorage.setItem(SESSION_KEY, sParam);
+    history.replaceState(null, '', '/');
+  }
+
+  // 2) IP 체크
   try {
     const resp = await fetch('/api/ip-check');
     const data = await resp.json();
     if (data.recognized) {
       ipRecognized = true;
       document.getElementById('ipLockOverlay').style.display = 'none';
-      // 관리자면 링크관리 버튼 표시
+
       if (data.admin) {
         document.getElementById('adminBtn').style.display = '';
       }
-      // 잔여 횟수 반영
       if (data.remaining !== undefined) {
         updateAiModelUsageUI(data.remaining, data.limit || 100);
       }
-      // ── 만료 자동 감지 타이머 ──
+
+      // 만료 타이머 + 카운트다운
       if (data.expiresAt && !data.admin) {
         _linkExpiresAt = new Date(data.expiresAt).getTime();
-        const expiresMs = _linkExpiresAt - Date.now();
-        if (expiresMs > 0) {
-          setTimeout(lockExpired, expiresMs);
-        }
+        setupExpiryTimer(data.expiresAt);
+        setupCountdown(data.expiresAt);
+      }
+
+      // 세션 폴링 시작
+      if (_sessionToken) {
+        startPolling();
       }
     } else if (data.expired) {
-      // 링크 유효기간 만료 → 잠금 오버레이에 만료 메시지
       const overlay = document.getElementById('ipLockOverlay');
       overlay.querySelector('h2').textContent = '링크가 만료되었습니다';
       overlay.querySelector('p').innerHTML = '이 링크의 유효 기간이 지났습니다.<br>관리자에게 새로운 링크를 요청해주세요.';
     }
-    // recognized === false → 오버레이 유지
   } catch (e) {
     console.warn('IP 확인 실패:', e);
-    // 네트워크 에러 시 접근 허용 (graceful degradation)
     ipRecognized = true;
     document.getElementById('ipLockOverlay').style.display = 'none';
   }
