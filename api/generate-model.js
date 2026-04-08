@@ -135,7 +135,7 @@ export default async function handler(req, res) {
   }
 
   // ── 링크 유효기간 만료 확인 ──
-  if (info.ipData.expiresAt && info.ipData.linkToken !== 'pin-auth') {
+  if (info.ipData.expiresAt) {
     if (new Date(info.ipData.expiresAt) < new Date()) {
       return res.status(403).json({
         error: '링크의 유효 기간이 만료되었습니다.',
