@@ -54,30 +54,37 @@ export default async function handler(req, res) {
     const linkInactive = !link.active;
     const linkMaxed = link.maxVisits > 0 && link.currentVisits >= link.maxVisits;
 
-    if (linkExpired || linkInactive || linkMaxed) {
-      // 이전에 등록된 IP → 실제 사유 알려줌
+    // 만료/비활성 → 모든 사용자 차단
+    if (linkExpired || linkInactive) {
       if (existingIp) {
         if (linkExpired) return res.status(403).json({ error: '만료된 링크입니다.', code: 'EXPIRED' });
-        if (linkInactive) return res.status(403).json({ error: '비활성화된 링크입니다.', code: 'INACTIVE' });
-        return res.status(403).json({ error: '최대 접근 횟수를 초과했습니다.', code: 'MAX_VISITS' });
+        return res.status(403).json({ error: '비활성화된 링크입니다.', code: 'INACTIVE' });
       }
-      // 미등록 IP → 링크 존재 자체를 숨김
       return res.status(404).json({ error: '유효하지 않은 링크입니다.', code: 'NOT_FOUND' });
+    }
+
+    // 방문횟수 초과 → 등록된 IP는 통과, 미등록 IP만 차단
+    if (linkMaxed) {
+      if (existingIp) {
+        // 등록된 IP: 시간제한 만료 전까지 계속 사용 가능 (카운트 증가 없이 통과)
+      } else {
+        return res.status(404).json({ error: '유효하지 않은 링크입니다.', code: 'NOT_FOUND' });
+      }
     }
 
     // ── 방문 유예기간: 같은 IP에서 5분 이내 재방문이면 카운트 안 함 ──
     const graceKey = `grace:${token}:${clientIp}`;
     const existingGrace = await store.get(graceKey);
-    const shouldCountVisit = !existingGrace;
+    const shouldCountVisit = !existingGrace && !linkMaxed; // 횟수 초과 상태면 카운트 안 함
 
     if (shouldCountVisit) {
-      // ── 레이스 컨디션 완화: 먼저 증가 후 한도 재확인 ──
       link.currentVisits += 1;
 
       if (link.maxVisits > 0 && link.currentVisits > link.maxVisits) {
         link.currentVisits -= 1;
         await store.set(`link:${token}`, JSON.stringify(link));
-        return res.status(403).json({ error: '최대 접근 횟수를 초과했습니다.', code: 'MAX_VISITS' });
+        // 등록 IP는 여기까지 안 옴 (위에서 통과), 미등록 IP만 차단
+        return res.status(404).json({ error: '유효하지 않은 링크입니다.', code: 'NOT_FOUND' });
       }
 
       link.visitLog.push({
