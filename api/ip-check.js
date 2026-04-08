@@ -40,6 +40,14 @@ export default async function handler(req, res) {
     }
 
     const ipData = typeof ipRaw === 'string' ? JSON.parse(ipRaw) : ipRaw;
+
+    // 링크 유효기간 만료 확인 (관리자 PIN 인증은 만료 없음)
+    if (ipData.expiresAt && ipData.linkToken !== 'pin-auth') {
+      if (new Date(ipData.expiresAt) < new Date()) {
+        return res.status(200).json({ recognized: false, expired: true });
+      }
+    }
+
     const { currentCycleStart, currentCycleEnd } = calcCycle(ipData.firstVisit);
 
     // 사용량 조회

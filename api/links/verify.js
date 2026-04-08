@@ -113,11 +113,13 @@ export default async function handler(req, res) {
     // ── IP 등록: 유효한 링크를 통해 접근한 IP를 기억 ──
     const ipKey = `ip:${clientIp}`;
     if (!existingIp) {
-      await store.set(ipKey, JSON.stringify({
+      const ipData = {
         firstVisit: new Date().toISOString(),
         linkToken: token,
         registeredAt: new Date().toISOString(),
-      }));
+        expiresAt: link.expiresAt || null,
+      };
+      await store.set(ipKey, JSON.stringify(ipData));
     }
 
     return res.status(200).json({
