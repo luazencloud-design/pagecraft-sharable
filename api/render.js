@@ -195,17 +195,40 @@ export default async function handler(req, res) {
 
     const divH = (idx) => hasImg(idx) ? DIVIDER_PHOTO_H : 0;
 
-    const paras = (d.description||'').split('\n').filter(Boolean);
-    const para1 = paras.length > 0 ? paras[0] : '';
-    const para2 = paras.length > 1 ? paras.slice(1).join('\n') : '';
+    // 상세 설명 파싱
+    const descStr = Array.isArray(d.description) ? d.description.join('\n') : String(d.description||'');
+    const allDescLines = descStr.split('\n').filter(Boolean);
+    const para1 = allDescLines.length > 0 ? allDescLines[0] : '';
+    // 이미지 5~10 (인덱스 4~9) 에 붙일 설명 줄 (이미지가 있을 때만)
+    const dividerImgIndices = [4, 5, 6, 7, 8, 9];
+    const extraDescLines = [];
+    let descLineIdx = 1; // para1 다음부터
+    for (const imgIdx of dividerImgIndices) {
+      if (hasImg(imgIdx) && descLineIdx < allDescLines.length) {
+        extraDescLines.push({ imgIdx, text: allDescLines[descLineIdx] });
+        descLineIdx++;
+      }
+    }
+
     const descH1 = para1 ? descH : 0;
-    const descH2 = para2 ? descH : 0;
+    // 이미지+설명 쌍의 높이 계산
+    const EXTRA_DESC_H = 80; // 이미지 아래 설명 1줄 높이
+    let extraSectionH = 0;
+    for (const ed of extraDescLines) {
+      extraSectionH += DIVIDER_PHOTO_H + EXTRA_DESC_H;
+    }
+    // 설명 없는 구분 이미지 (이미지4~9 중 설명이 안 붙은 것)
+    const usedImgIndices = new Set(extraDescLines.map(e => e.imgIdx));
+    let plainDivH = 0;
+    for (const imgIdx of dividerImgIndices) {
+      if (hasImg(imgIdx) && !usedImgIndices.has(imgIdx)) {
+        plainDivH += DIVIDER_PHOTO_H;
+      }
+    }
 
     const total = storeH + heroH + mainH + copyH
-      + divH(3) + divH(7) + ptH
-      + divH(4) + divH(8)
-      + descH1 + divH(5) + descH2
-      + divH(6) + divH(9)
+      + divH(3) + ptH + descH1
+      + extraSectionH + plainDivH
       + (hasColorImgs ? lbl2H + colorH : 0)
       + specH + kwH + cautH + footH + termsH;
 
@@ -311,11 +334,10 @@ export default async function handler(req, res) {
     }
     y += copyH;
 
-    // 4-5. 구분 이미지
+    // 4. 이미지 4
     y = drawDividerImage(3, y);
-    y = drawDividerImage(7, y);
 
-    // 6. 판매 포인트
+    // 5. 판매 포인트
     fillRect(0, y, W, ptH, SISAL);
     line(60, y+36, 100, y+36, GOLD, 2);
     text('SELLING POINTS', 108, y+31, GOLD, 10);
@@ -330,45 +352,49 @@ export default async function handler(req, res) {
       line(cx, px+48, cx+colW-10, px+48, BG);
       ctx.fillStyle = BLACK;
       ctx.font = `700 12px "${fontH}", sans-serif`;
-      ctx.fillText((pts[i]||'').slice(0,10), cx, px+64);
+      const ptTitle = (pts[i]||'');
+      const ptMaxW = colW - 10;
+      let ptText = ptTitle;
+      if (ctx.measureText(ptTitle).width > ptMaxW) {
+        for (let c = ptTitle.length; c > 0; c--) {
+          if (ctx.measureText(ptTitle.slice(0, c)).width <= ptMaxW) { ptText = ptTitle.slice(0, c); break; }
+        }
+      }
+      ctx.fillText(ptText, cx, px+64);
       if (pts[i]) wrapText(pts[i], cx, px+82, colW-10, 11, GRAY, 6);
     }
     y += ptH;
 
-    // 7-8. 구분 이미지
-    y = drawDividerImage(4, y);
-    y = drawDividerImage(8, y);
-
-    // 9. 상세 설명 1문단
+    // 6. 상세 설명 1문단 (메인 카피처럼 굵고 크게)
     if (para1) {
       fillRect(0, y, W, descH, IVORY);
       line(60, y+36, 100, y+36, GOLD, 2);
       text('PRODUCT STORY', 108, y+31, GOLD, 10);
       let dy = y+60;
-      dy = wrapText(para1, 60, dy, W-120, 15, GRAY, 6);
-      y += descH;
-    }
-
-    y = drawDividerImage(5, y);
-
-    // 11. 상세 설명 2문단
-    if (para2) {
-      fillRect(0, y, W, descH, IVORY);
-      line(60, y+36, 100, y+36, GOLD, 2);
-      text('PRODUCT STORY', 108, y+31, GOLD, 10);
-      let dy = y+60;
-      const p2Lines = para2.split('\n').filter(Boolean);
-      for (const pLine of p2Lines) {
-        dy = wrapText(pLine, 60, dy, W-120, 15, GRAY, 6);
-        dy += 14;
+      const p1Lines = String(para1).split('\n');
+      for (const pl of p1Lines) {
+        dy = wrapText(pl, 60, dy, W-120, 18, BLACK, 8, true, true);
       }
       y += descH;
     }
 
-    y = drawDividerImage(6, y);
-    y = drawDividerImage(9, y);
+    // 7~12. 이미지 5~10 + 각각 상세 설명 1줄 (있을 때만)
+    for (const imgIdx of dividerImgIndices) {
+      if (!hasImg(imgIdx)) continue;
+      // 이미지 그리기
+      fillRect(0, y, W, DIVIDER_PHOTO_H, BG);
+      drawImageCover(loadedImgs[imgIdx], 0, y, W, DIVIDER_PHOTO_H);
+      y += DIVIDER_PHOTO_H;
+      // 이 이미지에 붙을 설명이 있으면 표시
+      const ed = extraDescLines.find(e => e.imgIdx === imgIdx);
+      if (ed) {
+        fillRect(0, y, W, EXTRA_DESC_H, IVORY);
+        wrapText(ed.text, 60, y+28, W-120, 18, BLACK, 8, true, true);
+        y += EXTRA_DESC_H;
+      }
+    }
 
-    // 14. 컬러 선택
+    // 13. 컬러 선택
     if (hasColorImgs) {
       fillRect(0, y, W, lbl2H, DARK);
       centerText('COLOR VARIATION  ·  컬러 선택', y+24, YELLOW, 10);
