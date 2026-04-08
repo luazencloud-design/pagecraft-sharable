@@ -542,7 +542,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   display:flex;align-items:center;justify-content:center;
   transition:opacity 0.4s;
 }
-.lock-overlay.hidden{opacity:0;pointer-events:none}
+.lock-overlay.hidden{opacity:0;pointer-events:none;display:none}
 .lock-card{
   background:var(--surface);border:1px solid var(--border2);border-radius:20px;
   padding:48px 40px;text-align:center;max-width:420px;width:90%;
@@ -884,6 +884,7 @@ function revokeAccess(code, message) {
   const badge = overlay.querySelector('.lock-badge');
   if (badge) badge.textContent = '접근 권한이 만료되었습니다';
   overlay.classList.remove('hidden');
+  overlay.style.display = 'flex';
 
   toast('🚫 접근 권한이 만료되어 세션이 종료되었습니다.');
 }
@@ -1435,7 +1436,8 @@ async function generateModelImage() {
     });
     const data = await resp.json();
     if (resp.status === 403) {
-      document.getElementById('ipLockOverlay').classList.remove('hidden');
+      const lo = document.getElementById('ipLockOverlay');
+      lo.classList.remove('hidden'); lo.style.display = 'flex';
       toast('🔒 등록되지 않은 접근입니다. 유효한 링크로 접속해주세요.');
       btn.disabled = false; btn.classList.remove('loading'); return;
     }
