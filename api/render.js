@@ -196,7 +196,9 @@ export default async function handler(req, res) {
     const divH = (idx) => hasImg(idx) ? DIVIDER_PHOTO_H : 0;
 
     // 상세 설명 파싱
-    const descStr = Array.isArray(d.description) ? d.description.join('\n') : String(d.description||'');
+    const descRaw = Array.isArray(d.description) ? d.description.join('\n') : String(d.description||'');
+    // 리터럴 \n (백슬래시+n)도 실제 줄바꿈으로 변환
+    const descStr = descRaw.replace(/\\n/g, '\n');
     const allDescLines = descStr.split('\n').filter(Boolean);
     const para1 = allDescLines.length > 0 ? allDescLines[0] : '';
     // 이미지 5~10 (인덱스 4~9) 에 붙일 설명 줄 (이미지가 있을 때만)
@@ -388,7 +390,7 @@ export default async function handler(req, res) {
       const ed = extraDescLines.find(e => e.imgIdx === imgIdx);
       if (ed) {
         fillRect(0, y, W, EXTRA_DESC_H, IVORY);
-        wrapText(ed.text, 60, y+50, W-120, 18, BLACK, 8, true, true);
+        wrapText(ed.text, 60, y+70, W-120, 18, BLACK, 8, true, true);
         y += EXTRA_DESC_H;
       }
     }
