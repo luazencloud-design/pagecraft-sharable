@@ -868,6 +868,20 @@ let ipRecognized = false;
       if (data.remaining !== undefined) {
         updateAiModelUsageUI(data.remaining, data.limit || 100);
       }
+      // ── 만료 자동 감지 타이머 ──
+      if (data.expiresAt && !data.admin) {
+        const expiresMs = new Date(data.expiresAt).getTime() - Date.now();
+        if (expiresMs > 0) {
+          setTimeout(() => {
+            ipRecognized = false;
+            const overlay = document.getElementById('ipLockOverlay');
+            overlay.querySelector('h2').textContent = '사용 시간이 만료되었습니다';
+            overlay.querySelector('p').innerHTML = '관리자가 설정한 사용 시간이 종료되었습니다.<br>계속 사용하시려면 새로운 링크를 요청해주세요.';
+            overlay.style.display = 'flex';
+            toast('⏰ 사용 시간이 만료되었습니다.');
+          }, expiresMs);
+        }
+      }
     } else if (data.expired) {
       // 링크 유효기간 만료 → 잠금 오버레이에 만료 메시지
       const overlay = document.getElementById('ipLockOverlay');
