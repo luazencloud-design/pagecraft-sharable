@@ -22,6 +22,29 @@ async function revokeSessionsForLink(store, linkToken) {
   }
 }
 
+// 특정 링크로 등록된 모든 IP를 삭제 (+ 해당 IP의 사용량 데이터도 삭제)
+async function revokeIpsForLink(store, linkToken) {
+  try {
+    const ipKeys = await store.keys('ip:*');
+    let revoked = 0;
+    for (const key of ipKeys) {
+      const raw = await store.get(key);
+      if (!raw) continue;
+      const ipData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (ipData.linkToken === linkToken) {
+        const ip = key.replace('ip:', '');
+        await store.del(key);
+        await store.del(`ip-usage:${ip}`);
+        revoked++;
+      }
+    }
+    return revoked;
+  } catch (e) {
+    console.warn('IP 정리 중 오류:', e.message);
+    return 0;
+  }
+}
+
 export default async function handler(req, res) {
   setCors(req, res, 'POST, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -39,23 +62,25 @@ export default async function handler(req, res) {
     const raw = await store.get(`link:${token}`);
     if (!raw) return res.status(404).json({ error: '링크를 찾을 수 없습니다.' });
 
-    // 삭제 → 관련 세션도 즉시 삭제
+    // 삭제 → 관련 세션 + IP 즉시 삭제
     if (action === 'delete' || req.method === 'DELETE') {
-      const revoked = await revokeSessionsForLink(store, token);
+      const revokedSessions = await revokeSessionsForLink(store, token);
+      const revokedIps = await revokeIpsForLink(store, token);
       await store.del(`link:${token}`);
-      return res.status(200).json({ success: true, message: '링크가 삭제되었습니다.', revokedSessions: revoked });
+      return res.status(200).json({ success: true, message: '링크와 관련 접근 권한이 모두 삭제되었습니다.', revokedSessions, revokedIps });
     }
 
-    // 토글 (활성/비활성) → 비활성화 시 세션도 즉시 삭제
+    // 토글 (활성/비활성) → 비활성화 시 세션 + IP 즉시 삭제
     if (action === 'toggle') {
       const link = typeof raw === 'string' ? JSON.parse(raw) : raw;
       link.active = !link.active;
       await store.set(`link:${token}`, JSON.stringify(link));
-      let revoked = 0;
+      let revokedSessions = 0, revokedIps = 0;
       if (!link.active) {
-        revoked = await revokeSessionsForLink(store, token);
+        revokedSessions = await revokeSessionsForLink(store, token);
+        revokedIps = await revokeIpsForLink(store, token);
       }
-      return res.status(200).json({ success: true, active: link.active, revokedSessions: revoked });
+      return res.status(200).json({ success: true, active: link.active, revokedSessions, revokedIps });
     }
 
     // 수정
@@ -69,13 +94,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: link });
     }
 
-    // 방문 기록 초기화
+    // 방문 기록 초기화 → 관련 IP도 삭제 (새로 링크 접근 필요)
     if (action === 'resetVisits') {
       const link = typeof raw === 'string' ? JSON.parse(raw) : raw;
       link.currentVisits = 0;
       link.visitLog = [];
       await store.set(`link:${token}`, JSON.stringify(link));
-      return res.status(200).json({ success: true, message: '방문 기록이 초기화되었습니다.' });
+      const revokedSessions = await revokeSessionsForLink(store, token);
+      const revokedIps = await revokeIpsForLink(store, token);
+      return res.status(200).json({ success: true, message: '방문 기록과 접근 권한이 초기화되었습니다.', revokedSessions, revokedIps });
     }
 
     return res.status(400).json({ error: '유효하지 않은 action입니다.' });
