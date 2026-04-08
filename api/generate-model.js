@@ -186,8 +186,10 @@ SUBJECT: A Korean ${genderEn} model in their late 20s wearing/using "${productNa
 CAMERA & COMPOSITION:
 - ${focus.shot}
 - Crop: ${focus.crop}
+- The product MUST be positioned at the CENTER of the image frame
 - The product on the ${focus.part} must be the visual focal point of the image
 - Use shallow depth of field to draw attention to the product area
+- Center the product both horizontally and vertically in the composition
 
 IMPORTANT — PRODUCT vs CATEGORY CONFLICT:
 - If the reference images show a product that does NOT match the category "${category}", ALWAYS follow what the reference images show.
