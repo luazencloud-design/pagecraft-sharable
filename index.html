@@ -132,7 +132,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .upload-zone p{font-size:11px;color:var(--text2);line-height:1.5}
 
 /* Thumb Grid */
-.thumb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:6px 18px 0}
+.thumb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 18px 0}
 .single-thumb{padding:8px 18px 0}
 .single-thumb .sth-wrap{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
 .single-thumb img{width:100%;display:block}
@@ -535,6 +535,48 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .img-preview-close:hover{background:rgba(255,255,255,0.3)}
 @keyframes pulse-warn{0%,100%{opacity:1}50%{opacity:0.5}}
 
+/* ── 크롭 에디터 모달 ── */
+.crop-modal{
+  position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.92);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+}
+.crop-modal.show{display:flex}
+.crop-container{position:relative;max-width:90vw;max-height:75vh}
+.crop-container img{max-width:90vw;max-height:75vh;display:block;border-radius:4px}
+.crop-box{
+  position:absolute;border:2px solid var(--accent);background:rgba(232,201,122,0.08);
+  cursor:move;min-width:30px;min-height:30px;
+}
+.crop-handle{
+  position:absolute;width:14px;height:14px;background:var(--accent);border-radius:50%;
+  border:2px solid #fff;z-index:2;
+}
+.crop-handle.tl{top:-7px;left:-7px;cursor:nw-resize}
+.crop-handle.tr{top:-7px;right:-7px;cursor:ne-resize}
+.crop-handle.bl{bottom:-7px;left:-7px;cursor:sw-resize}
+.crop-handle.br{bottom:-7px;right:-7px;cursor:se-resize}
+.crop-dim{position:absolute;background:rgba(0,0,0,0.5)}
+.crop-toolbar{
+  display:flex;gap:10px;margin-top:16px;
+}
+.crop-toolbar button{
+  padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;
+  border:none;cursor:pointer;font-family:var(--font);transition:all 0.15s;
+}
+.crop-toolbar .crop-apply{background:var(--accent);color:#0c0c10}
+.crop-toolbar .crop-apply:hover{background:var(--accent2)}
+.crop-toolbar .crop-cancel{background:var(--surface3);color:var(--text2)}
+.crop-toolbar .crop-cancel:hover{background:var(--surface2)}
+
+/* 썸네일 크롭 버튼 */
+.thumb-crop{
+  position:absolute;bottom:3px;right:3px;width:18px;height:18px;
+  border-radius:4px;background:rgba(0,0,0,0.7);border:none;color:#fff;
+  font-size:10px;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity 0.15s;
+}
+.thumb:hover .thumb-crop{opacity:1}
+
 /* ── 세션 잠금 오버레이 ── */
 .lock-overlay{
   position:fixed;inset:0;z-index:9999;
@@ -646,6 +688,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="img-preview-modal" id="imgPreviewModal" onclick="closePreview()">
     <button class="img-preview-close" onclick="closePreview()">✕</button>
     <img id="imgPreviewSrc" src="" alt="미리보기">
+  </div>
+
+  <!-- 크롭 에디터 모달 -->
+  <div class="crop-modal" id="cropModal">
+    <div class="crop-container" id="cropContainer">
+      <img id="cropImg" src="">
+      <div class="crop-box" id="cropBox">
+        <div class="crop-handle tl" data-handle="tl"></div>
+        <div class="crop-handle tr" data-handle="tr"></div>
+        <div class="crop-handle bl" data-handle="bl"></div>
+        <div class="crop-handle br" data-handle="br"></div>
+      </div>
+    </div>
+    <div class="crop-toolbar">
+      <button class="crop-cancel" onclick="cancelCrop()">취소</button>
+      <button class="crop-apply" onclick="applyCrop()">✂ 자르기 적용</button>
+    </div>
   </div>
 
   <div class="divider"></div>
@@ -1360,6 +1419,7 @@ function renderThumbs() {
       ${im.bgProcessed ? '<div class="thumb-done">✓</div>' : ''}
       ${im.isAiModel ? '<div style="position:absolute;top:3px;left:3px;font-size:8px;background:var(--green);color:#fff;padding:1px 4px;border-radius:3px;z-index:2">AI</div>' : ''}
       <div class="thumb-checkbox ${im.bgSelected ? 'checked' : ''}" onclick="event.stopPropagation();toggleBgSelect(${i})">✓</div>
+      <button class="thumb-crop" onclick="event.stopPropagation();openCrop(${i})">✂</button>
       <button class="thumb-del" onclick="event.stopPropagation();rmImg(${i})">✕</button>
     </div>`
   ).join('');
@@ -1375,6 +1435,122 @@ function closePreview() {
   document.getElementById('imgPreviewModal').classList.remove('show');
   document.getElementById('imgPreviewSrc').src = '';
 }
+
+// ── 이미지 크롭 기능 ──
+let _cropIdx = -1;
+let _cropDrag = null; // { type:'move'|'tl'|'tr'|'bl'|'br', startX, startY, origBox }
+
+function openCrop(i) {
+  _cropIdx = i;
+  const modal = document.getElementById('cropModal');
+  const img = document.getElementById('cropImg');
+  img.src = imgs[i].data;
+  img.onload = () => {
+    const box = document.getElementById('cropBox');
+    const cw = img.clientWidth, ch = img.clientHeight;
+    // 초기 크롭 영역: 이미지의 80%
+    const margin = 0.1;
+    box.style.left = (cw * margin) + 'px';
+    box.style.top = (ch * margin) + 'px';
+    box.style.width = (cw * (1 - margin * 2)) + 'px';
+    box.style.height = (ch * (1 - margin * 2)) + 'px';
+  };
+  modal.classList.add('show');
+}
+
+function cancelCrop() {
+  document.getElementById('cropModal').classList.remove('show');
+  _cropIdx = -1;
+}
+
+function applyCrop() {
+  if (_cropIdx < 0) return;
+  const img = document.getElementById('cropImg');
+  const box = document.getElementById('cropBox');
+  const scaleX = img.naturalWidth / img.clientWidth;
+  const scaleY = img.naturalHeight / img.clientHeight;
+  const sx = parseInt(box.style.left) * scaleX;
+  const sy = parseInt(box.style.top) * scaleY;
+  const sw = parseInt(box.style.width) * scaleX;
+  const sh = parseInt(box.style.height) * scaleY;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = sw; canvas.height = sh;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  const mimeType = imgs[_cropIdx].data.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  const cropped = canvas.toDataURL(mimeType, 0.9);
+  imgs[_cropIdx].data = cropped;
+  imgs[_cropIdx].original = cropped;
+  imgs[_cropIdx].bgProcessed = false;
+  renderThumbs();
+  cancelCrop();
+  toast('✂ 이미지가 잘렸습니다');
+}
+
+// 크롭 박스 드래그
+(function initCropDrag() {
+  const container = document.getElementById('cropContainer');
+  const box = document.getElementById('cropBox');
+  if (!container || !box) return;
+
+  function getPos(e) {
+    const t = e.touches ? e.touches[0] : e;
+    const r = container.getBoundingClientRect();
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  }
+
+  function startDrag(e) {
+    e.preventDefault(); e.stopPropagation();
+    const handle = e.target.dataset?.handle;
+    const pos = getPos(e);
+    _cropDrag = {
+      type: handle || 'move',
+      startX: pos.x, startY: pos.y,
+      origL: parseInt(box.style.left), origT: parseInt(box.style.top),
+      origW: parseInt(box.style.width), origH: parseInt(box.style.height)
+    };
+  }
+  function onDrag(e) {
+    if (!_cropDrag) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    const dx = pos.x - _cropDrag.startX;
+    const dy = pos.y - _cropDrag.startY;
+    const img = document.getElementById('cropImg');
+    const maxW = img.clientWidth, maxH = img.clientHeight;
+    let l = _cropDrag.origL, t = _cropDrag.origT, w = _cropDrag.origW, h = _cropDrag.origH;
+
+    if (_cropDrag.type === 'move') {
+      l = Math.max(0, Math.min(l + dx, maxW - w));
+      t = Math.max(0, Math.min(t + dy, maxH - h));
+    } else {
+      if (_cropDrag.type.includes('l')) { l += dx; w -= dx; }
+      if (_cropDrag.type.includes('r')) { w += dx; }
+      if (_cropDrag.type.includes('t')) { t += dy; h -= dy; }
+      if (_cropDrag.type.includes('b')) { h += dy; }
+      if (w < 30) w = 30; if (h < 30) h = 30;
+      if (l < 0) { w += l; l = 0; } if (t < 0) { h += t; t = 0; }
+      if (l + w > maxW) w = maxW - l; if (t + h > maxH) h = maxH - t;
+    }
+    box.style.left = l + 'px'; box.style.top = t + 'px';
+    box.style.width = w + 'px'; box.style.height = h + 'px';
+  }
+  function endDrag() { _cropDrag = null; }
+
+  box.addEventListener('mousedown', startDrag);
+  box.addEventListener('touchstart', startDrag, { passive: false });
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('touchmove', onDrag, { passive: false });
+  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('touchend', endDrag);
+
+  // 핸들에서 시작
+  box.querySelectorAll('.crop-handle').forEach(h => {
+    h.addEventListener('mousedown', startDrag);
+    h.addEventListener('touchstart', startDrag, { passive: false });
+  });
+})();
 
 // ── 이미지 드래그 순서 변경 ──
 let dragIdx = null;
@@ -1538,10 +1714,17 @@ document.getElementById('genBtn').onclick = async function() {
 3. 인사말, 설명 등 JSON 외의 텍스트는 출력하지 마세요.
 4. 모든 키와 값은 큰따옴표(")로 묶고, 값 안의 줄바꿈은 '\\n'으로 처리하세요.`;
 
+  const descLineCount = Math.max(1, imgs.length - 4);
+  const descExample = Array.from({length: descLineCount}, (_,i) => `설명${i+1}줄`).join('\\\\n');
+
   const usr = `상품 이미지를 분석하여 JSON 생성:
 브랜드:${brand||'이미지에서판단'}, 상품명:${pname||'이미지에서판단'}, 가격:${price||'미입력'}, 카테고리:${cat}, 특징:${feats}, 플랫폼:${pf}, 메모:${memo||'없음'}
+사진 ${imgs.length}장 업로드됨.
 
-{"product_name":"상품명(40자이내)","subtitle":"서브타이틀(20자이내)","main_copy":"메인카피1~2줄","selling_points":["포인트1","포인트2","포인트3"],"description":"상세설명2문단(\\n구분)","specs":[{"key":"브랜드","value":"..."},{"key":"소재","value":"..."},{"key":"사이즈","value":"..."},{"key":"색상","value":"..."},{"key":"원산지","value":"..."},{"key":"세탁방법","value":"..."},{"key":"추천계절","value":"..."}],"keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"],"caution":"주의사항2~3가지"}`;
+[중요] description은 정확히 ${descLineCount}줄로 작성하세요. 각 줄은 \\n으로 구분합니다.
+각 줄은 상품의 서로 다른 특징, 장점, 또는 사용 시나리오를 설명하는 매력적인 1문장입니다.
+
+{"product_name":"상품명(40자이내)","subtitle":"서브타이틀(20자이내)","main_copy":"메인카피1~2줄","selling_points":["포인트1","포인트2","포인트3"],"description":"${descExample}","specs":[{"key":"브랜드","value":"..."},{"key":"소재","value":"..."},{"key":"사이즈","value":"..."},{"key":"색상","value":"..."},{"key":"원산지","value":"..."},{"key":"세탁방법","value":"..."},{"key":"추천계절","value":"..."}],"keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"],"caution":"주의사항2~3가지"}`;
 
   try {
     const resp = await fetch('/api/generate', {
