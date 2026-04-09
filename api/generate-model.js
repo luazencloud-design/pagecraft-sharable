@@ -21,37 +21,54 @@ function getCameraFocus(category, productName) {
   const name = (productName || '').toLowerCase();
   const cat = (category || '').toLowerCase();
 
-  if (/귀걸이|이어링|귀/.test(name)) return { part: 'ears and face', shot: 'close-up head and shoulders shot focusing on the ears', crop: 'head to shoulders' };
-  if (/목걸이|네크리스|펜던트|목/.test(name)) return { part: 'neck and chest', shot: 'close-up upper body shot focusing on the neckline', crop: 'face to mid-chest' };
-  if (/팔찌|뱅글|시계|손목/.test(name)) return { part: 'wrist and forearm', shot: 'close-up shot of the wrist and hand area', crop: 'elbow to fingertips' };
-  if (/반지|링/.test(name)) return { part: 'fingers and hand', shot: 'extreme close-up of the hand showcasing the ring on the finger', crop: 'hand and fingers only' };
-  if (/안경|선글라스/.test(name)) return { part: 'face', shot: 'close-up face shot focusing on the eyewear', crop: 'head to chin' };
-  if (/벨트/.test(name)) return { part: 'waist', shot: 'mid-body shot focusing on the waist and belt area', crop: 'chest to thighs' };
-  if (/양말|삭스/.test(name)) return { part: 'feet and ankles', shot: 'low-angle shot focusing on the feet and ankles', crop: 'knees to feet' };
+  // 1) 상품명에서 구체적 아이템 감지
+  // 머리 착용 액세서리 → 머리만 보이게
+  if (/모자|캡|비니|버킷햇|햇|헤어밴드|머리띠/.test(name)) return { part: 'head only', shot: 'tight close-up of the head from top of hat to chin, showing ONLY the head and the accessory. No shoulders, no body.', crop: 'top of accessory to chin only' };
+  if (/귀걸이|이어링/.test(name)) return { part: 'head only', shot: 'close-up of the head and ears only, no shoulders visible. Focus on the earrings.', crop: 'top of head to chin' };
+  if (/안경|선글라스/.test(name)) return { part: 'head only', shot: 'close-up of the face only, showing the eyewear clearly. No body below chin.', crop: 'forehead to chin' };
 
+  // 목/가슴 액세서리 → 머리+목+가슴
+  if (/목걸이|네크리스|펜던트/.test(name)) return { part: 'head and neck', shot: 'portrait from head to mid-chest showing the necklace on the neckline', crop: 'head to mid-chest' };
+  if (/스카프|머플러|넥워머/.test(name)) return { part: 'head and neck', shot: 'portrait from head to chest showing how the scarf is wrapped', crop: 'head to chest' };
+
+  // 손목/손 액세서리
+  if (/팔찌|뱅글|시계|손목/.test(name)) return { part: 'wrist', shot: 'close-up of the wrist and hand area only', crop: 'elbow to fingertips' };
+  if (/반지|링/.test(name)) return { part: 'hand', shot: 'extreme close-up of the hand showcasing the ring', crop: 'hand and fingers only' };
+
+  // 허리
+  if (/벨트/.test(name)) return { part: 'waist', shot: 'mid-body shot focusing on the waist area', crop: 'chest to thighs' };
+
+  // 발 → 의자에 앉은 포즈
+  if (/양말|삭스/.test(name)) return { part: 'feet', shot: 'model sitting on a white stool/chair with legs crossed, low-angle shot focusing on the feet and ankles. The shoes/socks must be the center of attention.', crop: 'knees to feet' };
+
+  // 2) 카테고리 기반
+  // 상의 → 머리+몸만 보이게 (하반신 없음)
   if (/패딩|점퍼|집업|후리스|후리|티셔츠|맨투맨|상의|자켓|코트|셔츠|블라우스|니트|가디건|조끼/.test(cat)) {
-    return { part: 'upper body', shot: '3/4 upper body shot focusing on the torso and outerwear details', crop: 'head to waist' };
+    return { part: 'head and torso', shot: 'upper body portrait showing ONLY head and torso. Crop below the waist — no legs visible. Focus on the outerwear details.', crop: 'top of head to waist, no legs' };
   }
   if (/바지|하의|팬츠|스커트|치마|레깅스|청바지|슬랙스/.test(cat)) {
-    return { part: 'lower body', shot: 'full body shot with emphasis on the lower half, pants/skirt details clearly visible', crop: 'waist to feet' };
+    return { part: 'lower body', shot: 'full body shot with emphasis on the lower half, standing pose showing pants/skirt details clearly', crop: 'waist to feet' };
   }
+  // 가방 → 머리+몸+가방 보이게
   if (/가방|배낭|백팩|토트|크로스백|숄더백/.test(cat)) {
-    return { part: 'back and side view', shot: '3/4 rear view or side view showing the bag being carried naturally', crop: 'head to knees, angled to show bag' };
+    return { part: 'head and torso with bag', shot: 'upper body or 3/4 body shot showing ONLY head, torso, and the bag. The model carries the bag naturally. Show head and body only.', crop: 'head to hips, showing bag' };
   }
+  // 모자 → 머리만
   if (/모자|캡|비니|버킷햇|햇/.test(cat)) {
-    return { part: 'head and face', shot: 'close-up head and upper body shot, clearly showing the hat style', crop: 'top of hat to shoulders' };
+    return { part: 'head only', shot: 'tight close-up of the head showing ONLY the head with the hat. No shoulders, no body below chin.', crop: 'top of hat to chin only' };
   }
+  // 신발 → 의자에 앉은 포즈로 신발 강조
   if (/신발|부츠|스니커즈|운동화|로퍼|구두/.test(cat)) {
-    return { part: 'feet and legs', shot: 'full body shot with low camera angle emphasizing the footwear', crop: 'full body, camera low angle' };
+    return { part: 'feet and legs seated', shot: 'model sitting casually on a white stool/chair with one leg crossed over the other, camera at low angle focusing on the footwear. The shoes must be the CENTER and largest element in the frame.', crop: 'seated pose, thighs to feet' };
   }
   if (/슬리퍼|샌들|쪼리/.test(cat)) {
-    return { part: 'feet', shot: 'close-up shot of the feet clearly showing the sandals/slippers', crop: 'knees to feet' };
+    return { part: 'feet seated', shot: 'model sitting on a white stool with feet forward, close-up focusing on the sandals/slippers. Shoes are the center of the image.', crop: 'knees to feet, seated' };
   }
   if (/스카프|머플러|넥워머/.test(cat)) {
-    return { part: 'neck and shoulders', shot: 'upper body portrait focusing on the neck area and how the scarf is styled', crop: 'head to chest' };
+    return { part: 'head and neck', shot: 'portrait from head to chest showing how the scarf is styled', crop: 'head to chest' };
   }
-  if (/모자|액세서리/.test(cat)) {
-    return { part: 'accessory area', shot: 'close-up shot clearly showcasing the accessory being worn', crop: 'focused on accessory location' };
+  if (/액세서리/.test(cat)) {
+    return { part: 'accessory focus', shot: 'close-up showing ONLY the body part where the accessory is worn. Minimize visible body area.', crop: 'tight on accessory' };
   }
 
   return { part: 'full body', shot: 'full body shot showing the complete outfit', crop: 'head to toe' };

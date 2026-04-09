@@ -282,10 +282,20 @@ export default async function handler(req, res) {
       return cy;
     }
 
+    // object-fit: contain 방식 (이미지 위아래 잘리지 않음)
+    function drawImageContain(imgObj, dx, dy, dw, dh) {
+      const { img, w: sw, h: sh } = imgObj;
+      const scale = Math.min(dw / sw, dh / sh);
+      const drawW = sw * scale, drawH = sh * scale;
+      const offsetX = dx + (dw - drawW) / 2;
+      const offsetY = dy + (dh - drawH) / 2;
+      ctx.drawImage(img, 0, 0, sw, sh, offsetX, offsetY, drawW, drawH);
+    }
+
     function drawDividerImage(imgIdx, yPos) {
       if (!hasImg(imgIdx)) return yPos;
       fillRect(0, yPos, W, DIVIDER_PHOTO_H, BG);
-      drawImageCover(loadedImgs[imgIdx], 0, yPos, W, DIVIDER_PHOTO_H);
+      drawImageContain(loadedImgs[imgIdx], 0, yPos, W, DIVIDER_PHOTO_H);
       return yPos + DIVIDER_PHOTO_H;
     }
 
@@ -382,9 +392,9 @@ export default async function handler(req, res) {
     // 7~12. 이미지 5~10 + 각각 상세 설명 1줄 (있을 때만)
     for (const imgIdx of dividerImgIndices) {
       if (!hasImg(imgIdx)) continue;
-      // 이미지 그리기
+      // 이미지 그리기 (위아래 잘리지 않게 contain)
       fillRect(0, y, W, DIVIDER_PHOTO_H, BG);
-      drawImageCover(loadedImgs[imgIdx], 0, y, W, DIVIDER_PHOTO_H);
+      drawImageContain(loadedImgs[imgIdx], 0, y, W, DIVIDER_PHOTO_H);
       y += DIVIDER_PHOTO_H;
       // 이 이미지에 붙을 설명이 있으면 표시
       const ed = extraDescLines.find(e => e.imgIdx === imgIdx);
